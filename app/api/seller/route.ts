@@ -42,19 +42,38 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ success: false, error: "Use a valid shielded Zcash Unified (u1...) or Sapling (zs1...) address." }, { status: 400 });
   }
   const token = isToken(body.seller_secret_token) ? body.seller_secret_token : randomBytes(32).toString("hex");
-  const admin = getSupabaseAdmin();
-  const { data, error } = await admin.from("sellers").upsert({
-    seller_secret_token: token,
-    store_name: body.store_name.trim(),
-    social_handle: body.social_handle?.trim() || null,
-    payout_address: payoutAddress,
-    updated_at: new Date().toISOString(),
-  }, { onConflict: "seller_secret_token" })
-    .select("id, seller_secret_token, store_name, social_handle, payout_address, created_at, updated_at")
-    .single();
-  if (error || !data) {
-    console.error("[seller] profile save failed:", error);
-    return NextResponse.json({ success: false, error: "Failed to save seller profile." }, { status: 500 });
+  try {
+    const admin = getSupabaseAdmin();
+    const { data, error } = await admin.from("sellers").upsert({
+      seller_secret_token: token,
+      store_name: body.store_name.trim(),
+      social_handle: body.social_handle?.trim() || null,
+      payout_address: payoutAddress,
+      updated_at: new Date().toISOString(),
+    }, { onConflict: "seller_secret_token" })
+      .select("id, seller_secret_token, store_name, social_handle, payout_address, created_at, updated_at")
+      .single();
+    if (error || !data) {
+      console.error("[seller] profile save failed:", {
+        code: error?.code,
+        message: error?.message,
+        details: error?.details,
+        hint: error?.hint,
+      });
+      return NextResponse.json(
+        { success: false, error: error?.message ?? "Failed to save seller profile." },
+        { status: 500 }
+      );
+    }
+    return NextResponse.json({ success: true, seller: data });
+  } catch (error) {
+    console.error("[seller] configuration failed:", error);
+    return NextResponse.json(
+      {
+        success: false,
+        error: error instanceof Error ? error.message : "Supabase server configuration is invalid.",
+      },
+      { status: 500 }
+    );
   }
-  return NextResponse.json({ success: true, seller: data });
 }

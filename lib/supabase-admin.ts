@@ -17,6 +17,11 @@ export function getSupabaseAdmin(): SupabaseClient {
       "Missing Supabase admin env vars: set NEXT_PUBLIC_SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY (server-only, never NEXT_PUBLIC_) in your environment."
     );
   }
+  if (serviceRoleKey.startsWith("sb_publishable_")) {
+    throw new Error(
+      "SUPABASE_SERVICE_ROLE_KEY is not a service-role key. Copy the secret service_role key from Supabase Project Settings > API."
+    );
+  }
 
   cachedClient = createClient(supabaseUrl, serviceRoleKey, {
     auth: { autoRefreshToken: false, persistSession: false },

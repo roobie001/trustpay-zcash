@@ -96,30 +96,30 @@ export default function PayPage({ params }: { params: Promise<{ id: string }> })
   return (
     <PageShell>
       <div className="mb-6 text-center">
-        <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-2xl bg-emerald-500 text-white shadow-lg shadow-emerald-500/30"><ShieldCheck className="h-6 w-6" /></div>
-        <h1 className="text-2xl font-bold tracking-tight text-slate-900 dark:text-white">{order.item_title}</h1>
-        <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">Sold by {order.seller_name}</p>
+        <div className="mx-auto mb-4 flex h-10 w-10 items-center justify-center rounded-lg border border-border-subtle text-brand"><ShieldCheck className="h-5 w-5" /></div>
+        <h1 className="text-2xl font-semibold tracking-tight text-primary-text">{order.item_title}</h1>
+        <p className="mt-1 text-sm text-muted-text">Sold by {order.seller_name}</p>
       </div>
-      <div className="mb-4 flex gap-3 rounded-2xl border border-emerald-200 bg-emerald-50/80 p-4 dark:border-emerald-500/20 dark:bg-emerald-500/5">
-        <ShieldCheck className="h-5 w-5 shrink-0 text-emerald-600" />
-        <p className="text-sm leading-relaxed text-emerald-800 dark:text-emerald-200/90"><span className="font-semibold">{VAULT_NAME} protected:</span> the vendor is paid only after delivery confirmation.</p>
+      <div className="mb-4 flex gap-3 rounded-xl border border-amber-500/20 bg-amber-500/10 p-4">
+        <ShieldCheck className="h-5 w-5 shrink-0 text-brand" />
+        <p className="text-sm leading-relaxed text-amber-200"><span className="font-semibold">{VAULT_NAME} protected:</span> the vendor is paid only after delivery confirmation.</p>
       </div>
       <div className={`${cardClass} mb-4 p-5`}>
-        <div className="flex items-center justify-between text-sm text-slate-600 dark:text-slate-400"><span>Item + delivery</span><strong className="text-lg text-slate-900 dark:text-white">{formatZec(total)}</strong></div>
-        <p className="mt-2 text-xs text-slate-500">The order id is included in Zcash&apos;s encrypted 512-byte memo.</p>
+        <div className="flex items-center justify-between text-sm text-muted-text"><span>Item + delivery</span><strong className="font-mono text-lg tabular-nums text-primary-text">{formatZec(total)}</strong></div>
+        <p className="mt-2 text-xs text-muted-text">The order id is included in Zcash&apos;s encrypted memo.</p>
       </div>
       {displayedTxid ? (
-        <div className={`${cardClass} p-6 text-center`}><Check className="mx-auto mb-3 h-12 w-12 rounded-full bg-emerald-500 p-3 text-white" /><h2 className="font-semibold text-slate-900 dark:text-white">Shielded payment submitted</h2><p className="mt-1 text-sm text-slate-500">Taking you to the order tracker…</p><a className="mt-4 inline-flex items-center gap-1 text-sm text-emerald-600" href={explorerTxUrl(displayedTxid)} target="_blank" rel="noreferrer">View transaction <ExternalLink className="h-3.5 w-3.5" /></a></div>
+        <div className={`${cardClass} p-6 text-center`}><Check className="mx-auto mb-3 h-12 w-12 rounded-full bg-brand p-3 text-canvas" /><h2 className="font-semibold text-primary-text">Shielded payment submitted</h2><p className="mt-1 text-sm text-muted-text">Taking you to the order tracker…</p><a className="mt-4 inline-flex items-center gap-1 text-sm text-brand" href={explorerTxUrl(displayedTxid)} target="_blank" rel="noreferrer">View transaction <ExternalLink className="h-3.5 w-3.5" /></a></div>
       ) : (
         <form onSubmit={handlePay} className={`${cardClass} space-y-4 p-5 sm:p-6`}>
           <div><label htmlFor="buyer-name" className={labelClass}>Your name</label><input id="buyer-name" value={buyerName} onChange={(e) => setBuyerName(e.target.value)} className={inputClass} /></div>
           <PhoneInput id="buyer-phone" label="Phone number" dialCode={dialCode} onDialCodeChange={setDialCode} value={buyerPhone} onChange={setBuyerPhone} />
-          {error && <p role="alert" className="flex gap-2 rounded-xl border border-red-200 bg-red-50 px-3.5 py-2.5 text-sm text-red-700"><TriangleAlert className="h-4 w-4 shrink-0" />{error}</p>}
+          {error && <p role="alert" className="flex gap-2 rounded-lg border border-red-500/30 bg-red-500/10 px-3.5 py-2.5 text-sm text-red-300"><TriangleAlert className="h-4 w-4 shrink-0" />{error}</p>}
           <button type="submit" className={`${primaryButtonClass} w-full py-3.5`}><Wallet className="h-4 w-4" />Choose private payment method</button>
         </form>
       )}
       {awaitingConfirmation && <p className="mt-4 rounded-xl border border-amber-500/30 bg-amber-500/10 p-3 text-center text-sm text-amber-200">Awaiting Shielded Confirmation… The tracker will update automatically.</p>}
-      <Link href={`/order/${order.id}`} className="mx-auto mt-5 flex w-fit items-center gap-1 text-xs text-slate-500">View order status <ArrowRight className="h-3.5 w-3.5" /></Link>
+      <Link href={`/order/${order.id}`} className="mx-auto mt-5 flex w-fit items-center gap-1 text-xs text-muted-text">View order status <ArrowRight className="h-3.5 w-3.5" /></Link>
       <ZcashCheckoutModal open={checkoutOpen} order={order} amount={total} onClose={() => setCheckoutOpen(false)} onPaymentSubmitted={(paymentTxid, buyerAddress) => void recordFunding(paymentTxid, buyerAddress)} />
     </PageShell>
   );

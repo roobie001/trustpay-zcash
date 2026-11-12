@@ -15,9 +15,9 @@ export function ConnectWalletButton() {
         type="button"
         onClick={() => void disconnect()}
         title="Disconnect wallet"
-        className="group inline-flex items-center gap-2 rounded-full border border-white/[0.08] bg-white/[0.04] px-3.5 py-2 text-sm font-medium text-slate-200 backdrop-blur transition hover:border-red-500/40 hover:text-red-300"
+        className="group inline-flex h-10 items-center gap-2 rounded-lg border border-border-subtle bg-surface px-3.5 text-sm font-medium text-primary-text transition hover:border-red-500/40 hover:text-red-300"
       >
-        <span className="h-2 w-2 rounded-full bg-emerald-500 group-hover:hidden" />
+        <span className="h-2 w-2 rounded-full bg-brand group-hover:hidden" />
         <LogOut className="hidden h-3.5 w-3.5 group-hover:block" />
         <span className="font-mono text-xs">{shortZcashAddress(address)}</span>
       </button>
@@ -35,7 +35,7 @@ export function ConnectWalletButton() {
           });
         }}
         disabled={pending}
-        className="inline-flex items-center gap-2 rounded-full border border-white/[0.10] bg-white/[0.04] px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:border-[#00F59B]/30 hover:bg-[#00F59B]/[0.08] disabled:opacity-60"
+        className="inline-flex h-10 items-center gap-2 rounded-lg border border-border-subtle bg-surface px-4 text-sm font-semibold text-primary-text transition hover:border-brand/40 hover:bg-brand/10 disabled:opacity-60"
       >
         {pending ? (
           <Loader2 className="h-4 w-4 animate-spin" />

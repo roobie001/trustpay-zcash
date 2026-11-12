@@ -3,10 +3,12 @@ module.exports = {
   theme: {
     extend: {
       colors: {
-        obsidian: "#07080B",
-        surface: "#0E121A",
-        mint: { DEFAULT: "#00F59B", hover: "#00DC8B", muted: "#00F59B1A" },
-        usdc: "#2775CA",
+        canvas: "#0A0B0D",
+        surface: "#121418",
+        "border-subtle": "#1F232B",
+        "primary-text": "#F4F5F7",
+        "muted-text": "#8A93A2",
+        brand: { DEFAULT: "#F4B728", hover: "#E0A419" },
       },
     },
   },
