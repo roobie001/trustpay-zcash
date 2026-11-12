@@ -13,6 +13,16 @@ if (!supabaseUrl || !supabaseKey) {
 
 export const supabase = createClient(supabaseUrl, supabaseKey);
 
+export type Seller = {
+  id: string;
+  seller_secret_token: string;
+  store_name: string;
+  social_handle: string | null;
+  payout_address: string;
+  created_at: string;
+  updated_at: string;
+};
+
 // Shielded escrow state is verified by the backend against lightwalletd. The
 // browser only stores the transaction ids and public order metadata.
 export type EscrowOrder = {
@@ -20,8 +30,10 @@ export type EscrowOrder = {
   item_title: string;
   amount: number; // ZEC
   delivery_fee: number; // ZEC
+  delivery_notes: string | null;
   seller_name: string;
   seller_phone: string;
+  seller_id: string | null;
   vendor_address: string;
   escrow_vault_address: string;
   buyer_name: string | null;

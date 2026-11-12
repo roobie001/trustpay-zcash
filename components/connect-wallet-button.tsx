@@ -1,11 +1,13 @@
 "use client";
 
-import { Loader2, LogOut, Shield } from "lucide-react";
+import { useState } from "react";
+import { Loader2, LogOut, Shield, TriangleAlert } from "lucide-react";
 import { useZcashWallet } from "@/lib/use-escrow";
 import { shortZcashAddress } from "@/lib/zcash";
 
 export function ConnectWalletButton() {
   const { address, isConnected, connect, disconnect, pending } = useZcashWallet();
+  const [error, setError] = useState<string | null>(null);
 
   if (isConnected && address) {
     return (
@@ -26,7 +28,12 @@ export function ConnectWalletButton() {
     <div className="flex flex-col items-end">
       <button
         type="button"
-        onClick={() => void connect()}
+        onClick={() => {
+          setError(null);
+          void connect().catch((reason: unknown) => {
+            setError(reason instanceof Error ? reason.message : "Unable to connect to a Zcash wallet.");
+          });
+        }}
         disabled={pending}
         className="inline-flex items-center gap-2 rounded-full border border-white/[0.10] bg-white/[0.04] px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:border-[#00F59B]/30 hover:bg-[#00F59B]/[0.08] disabled:opacity-60"
       >
@@ -37,6 +44,12 @@ export function ConnectWalletButton() {
         )}
         Connect Zcash Wallet
       </button>
+      {error && (
+        <span role="alert" className="mt-1 flex max-w-56 items-start gap-1 text-right text-[11px] text-red-400">
+          <TriangleAlert className="mt-0.5 h-3 w-3 shrink-0" />
+          {error}
+        </span>
+      )}
     </div>
   );
 }

@@ -16,6 +16,11 @@ vendor revenue, and order metadata are not public on-chain.
   an order held. It also creates shielded vendor payouts from `/release`.
 - Browser clients can use `/api/escrow/fund` as the stable funding endpoint;
   it delegates to the order-specific verifier.
+- Sellers create a passwordless profile once from the home screen. The profile
+  token is stored locally and can be copied as a `?sellerToken=` device-sync
+  link; order creation then only asks for the item, ZEC amount, and delivery
+  notes. Each order snapshots its payout address so later profile edits do not
+  change existing orders.
 - Seller and buyer state changes are recorded by the server API; no smart
   contract or EVM wallet is required.
 

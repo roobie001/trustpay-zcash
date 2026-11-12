@@ -1,13 +1,25 @@
 -- TrustPay shielded Zcash escrow schema.
 create extension if not exists pgcrypto;
 
+create table if not exists sellers (
+  id uuid primary key default gen_random_uuid(),
+  seller_secret_token text unique not null,
+  store_name text not null,
+  social_handle text,
+  payout_address text not null,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+
 create table if not exists escrow_orders (
   id uuid primary key default gen_random_uuid(),
   item_title text not null,
   amount numeric not null,
   delivery_fee numeric not null default 0,
+  delivery_notes text,
   seller_name text not null,
   seller_phone text not null,
+  seller_id uuid references sellers(id) on delete set null,
   vendor_address text not null,
   escrow_vault_address text not null,
   buyer_address text,
@@ -24,6 +36,8 @@ create table if not exists escrow_orders (
 -- Safe to re-run while migrating a database created by the EVM version.
 alter table escrow_orders add column if not exists vendor_address text;
 alter table escrow_orders add column if not exists escrow_vault_address text;
+alter table escrow_orders add column if not exists delivery_notes text;
+alter table escrow_orders add column if not exists seller_id uuid references sellers(id) on delete set null;
 alter table escrow_orders add column if not exists buyer_address text;
 alter table escrow_orders add column if not exists fund_txid text;
 alter table escrow_orders add column if not exists release_txid text;
@@ -37,9 +51,13 @@ create table if not exists escrow_order_secrets (
 
 alter table escrow_orders enable row level security;
 alter table escrow_order_secrets enable row level security;
+alter table sellers enable row level security;
 
 drop policy if exists "Anyone can read escrow orders" on escrow_orders;
 create policy "Anyone can read escrow orders" on escrow_orders for select using (true);
+
+drop policy if exists "Sellers can read their profile by token" on sellers;
+create policy "Sellers can read their profile by token" on sellers for select using (true);
 
 drop policy if exists "Anyone can update escrow orders except release" on escrow_orders;
 create policy "Anyone can update escrow orders except release"

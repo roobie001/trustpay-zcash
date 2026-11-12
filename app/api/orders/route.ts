@@ -1,6 +1,4 @@
-import { randomUUID } from "node:crypto";
 import { NextRequest, NextResponse } from "next/server";
-import { E164_PATTERN } from "@/lib/phone";
 import { getSupabaseAdmin } from "@/lib/supabase-admin";
 import { isZcashAddress } from "@/lib/zcash";
 
@@ -14,6 +12,9 @@ interface CreateOrderBody {
   item_title?: string;
   amount?: number;
   delivery_fee?: number;
+  delivery_notes?: string;
+  seller_id?: string;
+  seller_secret_token?: string;
   seller_name?: string;
   seller_phone?: string;
   vendor_address?: string;
@@ -35,22 +36,21 @@ export async function POST(request: NextRequest) {
     item_title,
     amount,
     delivery_fee = 0,
+    delivery_notes,
+    seller_id,
+    seller_secret_token,
     seller_name,
-    seller_phone,
+    seller_phone = "",
     vendor_address,
     escrow_vault_address,
   } = body;
 
   if (
     typeof item_title !== "string" ||
-    typeof seller_name !== "string" ||
-    typeof seller_phone !== "string" ||
-    typeof vendor_address !== "string" ||
+    (seller_name !== undefined && typeof seller_name !== "string") ||
+    (vendor_address !== undefined && typeof vendor_address !== "string") ||
     typeof escrow_vault_address !== "string" ||
     !item_title.trim() ||
-    !seller_name.trim() ||
-    !seller_phone.trim() ||
-    !vendor_address.trim() ||
     !escrow_vault_address.trim()
   ) {
     return NextResponse.json(
@@ -83,14 +83,7 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  if (!E164_PATTERN.test(seller_phone.trim())) {
-    return NextResponse.json(
-      { success: false, error: "seller_phone must be in E.164 format, e.g. +2348012345678." },
-      { status: 400 }
-    );
-  }
-
-  if (!isZcashAddress(vendor_address) || !isZcashAddress(escrow_vault_address)) {
+  if ((vendor_address && !isZcashAddress(vendor_address)) || !isZcashAddress(escrow_vault_address)) {
     return NextResponse.json(
       { success: false, error: "vendor_address and escrow_vault_address must be valid shielded Zcash addresses." },
       { status: 400 }
@@ -99,6 +92,20 @@ export async function POST(request: NextRequest) {
 
   try {
     const admin = getSupabaseAdmin();
+    if (typeof seller_secret_token !== "string" || !/^[a-f0-9]{64}$/i.test(seller_secret_token)) {
+      return NextResponse.json({ success: false, error: "Save a seller profile before creating an order." }, { status: 400 });
+    }
+    const { data: seller } = await admin.from("sellers").select("id, store_name, payout_address")
+      .eq("seller_secret_token", seller_secret_token).maybeSingle();
+    if (!seller || (seller_id && seller.id !== seller_id)) {
+      return NextResponse.json({ success: false, error: "Seller profile not found. Sync the profile and try again." }, { status: 403 });
+    }
+    const payoutAddress = typeof vendor_address === "string" && vendor_address.trim()
+      ? vendor_address.trim()
+      : seller.payout_address;
+    if (!isZcashAddress(payoutAddress)) {
+      return NextResponse.json({ success: false, error: "The payout address must be shielded Zcash." }, { status: 400 });
+    }
 
     const { data: order, error: insertError } = await admin
       .from("escrow_orders")
@@ -106,9 +113,11 @@ export async function POST(request: NextRequest) {
         item_title: item_title.trim(),
         amount,
         delivery_fee,
-        seller_name: seller_name.trim(),
+        seller_name: seller_name?.trim() || seller.store_name,
         seller_phone: seller_phone.trim(),
-        vendor_address: vendor_address.trim(),
+        delivery_notes: delivery_notes?.trim() || null,
+        seller_id: seller.id,
+        vendor_address: payoutAddress,
         escrow_vault_address: escrow_vault_address.trim(),
       })
       .select("id")
@@ -121,22 +130,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const sellerSecretKey = randomUUID();
-
-    const { error: secretError } = await admin
-      .from("escrow_order_secrets")
-      .insert({ order_id: order.id, seller_secret_key: sellerSecretKey });
-
-    if (secretError) {
-      // Don't leave an order behind that the seller can never manage.
-      await admin.from("escrow_orders").delete().eq("id", order.id);
-      return NextResponse.json(
-        { success: false, error: "Failed to secure the new order. Please try again." },
-        { status: 500 }
-      );
-    }
-
-    return NextResponse.json({ success: true, id: order.id, sellerKey: sellerSecretKey });
+    return NextResponse.json({ success: true, id: order.id, sellerKey: seller_secret_token });
   } catch (error) {
     console.error("[orders] server error:", error);
     return NextResponse.json(
