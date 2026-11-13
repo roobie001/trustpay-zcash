@@ -42,8 +42,11 @@ export async function POST(request: NextRequest) {
     seller_name,
     seller_phone = "",
     vendor_address,
-    escrow_vault_address,
+    escrow_vault_address: requestedVaultAddress,
   } = body;
+  const escrow_vault_address = typeof requestedVaultAddress === "string" && requestedVaultAddress.trim()
+    ? requestedVaultAddress.trim()
+    : process.env.NEXT_PUBLIC_ZCASH_ESCROW_VAULT_ADDRESS?.trim();
 
   if (
     typeof item_title !== "string" ||

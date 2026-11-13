@@ -13,7 +13,9 @@ export interface ZcashWallet {
   connect(): Promise<{ address: ZcashAddress }>;
   disconnect?(): Promise<void>;
   getAddress?(): Promise<ZcashAddress>;
-  sendShieldedPayment(request: ShieldedPaymentRequest): Promise<{ txid: string }>;
+  sendShieldedPayment(
+    request: ShieldedPaymentRequest,
+  ): Promise<{ txid: string }>;
 }
 
 export interface ZcashPaymentUriInput {
@@ -39,7 +41,7 @@ declare global {
 
 export function isZcashAddress(value: string): boolean {
   const address = value.trim();
-  return /^(u1|ztestsapling1|zs1)[a-z0-9]{20,}$/i.test(address);
+  return /^(u1|utest1|ztestsapling1|zs1)[a-z0-9]{20,}$/i.test(address);
 }
 
 export function isValidZecInput(value: string): boolean {
@@ -62,15 +64,22 @@ export function hasInjectedZcashWallet(): boolean {
 }
 
 export function explorerTxUrl(txid: string): string {
-  const base = process.env.NEXT_PUBLIC_ZCASH_EXPLORER_URL ?? "https://zcashblockexplorer.com/tx";
+  const base =
+    process.env.NEXT_PUBLIC_ZCASH_EXPLORER_URL ??
+    "https://zcashblockexplorer.com/tx";
   return `${base.replace(/\/$/, "")}/${encodeURIComponent(txid)}`;
 }
 
-export function createOrderMemo(orderId: string, payload: Record<string, string>): string {
+export function createOrderMemo(
+  orderId: string,
+  payload: Record<string, string>,
+): string {
   const memo = `TRUSTPAY:${orderId}:${JSON.stringify(payload)}`;
   const bytes = new TextEncoder().encode(memo);
   if (bytes.length > ZCASH_MEMO_BYTES) {
-    throw new Error("Order metadata exceeds Zcash's 512-byte encrypted memo limit.");
+    throw new Error(
+      "Order metadata exceeds Zcash's 512-byte encrypted memo limit.",
+    );
   }
   return memo;
 }
@@ -91,12 +100,16 @@ export function buildZcashPaymentUri({
   label,
   message,
 }: ZcashPaymentUriInput): string {
-  if (!isZcashAddress(address)) throw new Error("A valid Zcash Unified Address is required.");
-  if (!Number.isFinite(amountZec) || amountZec <= 0) throw new Error("Payment amount must be positive.");
+  if (!isZcashAddress(address))
+    throw new Error("A valid Zcash Unified Address is required.");
+  if (!Number.isFinite(amountZec) || amountZec <= 0)
+    throw new Error("Payment amount must be positive.");
   const memoPayload = `TRUSTPAY:${orderId}${message ? `:${message}` : ""}`;
   const memoBytes = new TextEncoder().encode(memoPayload);
   if (memoBytes.length > ZCASH_MEMO_BYTES) {
-    throw new Error("Order memo exceeds Zcash's 512-byte encrypted memo limit.");
+    throw new Error(
+      "Order memo exceeds Zcash's 512-byte encrypted memo limit.",
+    );
   }
   const params = new URLSearchParams({
     amount: amountZec.toFixed(ZEC_DECIMALS),
@@ -116,7 +129,9 @@ export function loadEphemeralZcashWallet(): EphemeralZcashWallet | null {
   if (!raw) return null;
   try {
     const wallet = JSON.parse(raw) as EphemeralZcashWallet;
-    return wallet.network === "testnet" && isZcashAddress(wallet.address) ? wallet : null;
+    return wallet.network === "testnet" && isZcashAddress(wallet.address)
+      ? wallet
+      : null;
   } catch {
     return null;
   }
@@ -129,6 +144,9 @@ export function createEphemeralZcashWallet(): EphemeralZcashWallet {
     balanceZec: 0,
     createdAt: new Date().toISOString(),
   };
-  window.localStorage.setItem("trustpay:ephemeral-zcash-wallet", JSON.stringify(wallet));
+  window.localStorage.setItem(
+    "trustpay:ephemeral-zcash-wallet",
+    JSON.stringify(wallet),
+  );
   return wallet;
 }

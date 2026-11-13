@@ -99,7 +99,9 @@ export function CreateEscrowModal({ open, onClose }: Props) {
   async function createOrder(event: FormEvent) {
     event.preventDefault();
     setError(null);
-    if (!seller || !itemTitle.trim() || !isValidZecInput(amount) || Number(amount) <= 0) {
+    const sellerToken = seller?.seller_secret_token ?? localStorage.getItem(TOKEN_KEY) ?? "";
+    const amountZec = Number.parseFloat(amount);
+    if (!seller || !seller.id || !sellerToken || !itemTitle.trim() || !isValidZecInput(amount) || !Number.isFinite(amountZec) || amountZec <= 0) {
       setError("Enter an item title and a positive ZEC amount.");
       return;
     }
@@ -110,20 +112,21 @@ export function CreateEscrowModal({ open, onClose }: Props) {
     }
     setSaving(true);
     try {
+      const payload = {
+        item_title: itemTitle.trim(),
+        amount: amountZec,
+        delivery_fee: 0,
+        delivery_notes: deliveryNotes.trim(),
+        seller_id: seller.id,
+        seller_secret_token: sellerToken,
+        seller_name: seller.store_name,
+        vendor_address: payout,
+        escrow_vault_address: process.env.NEXT_PUBLIC_ZCASH_ESCROW_VAULT_ADDRESS ?? "",
+      };
       const response = await fetch("/api/orders", {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({
-          item_title: itemTitle.trim(),
-          amount: Number(amount),
-          delivery_fee: 0,
-          delivery_notes: deliveryNotes.trim(),
-          seller_id: seller.id,
-          seller_secret_token: seller.seller_secret_token,
-          seller_name: seller.store_name,
-          vendor_address: payout,
-          escrow_vault_address: process.env.NEXT_PUBLIC_ZCASH_ESCROW_VAULT_ADDRESS,
-        }),
+        body: JSON.stringify(payload),
       });
       const data = await response.json() as { id?: string; sellerKey?: string; error?: string };
       if (!response.ok || !data.id) throw new Error(data.error ?? "Failed to create order.");
