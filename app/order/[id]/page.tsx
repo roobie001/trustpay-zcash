@@ -6,7 +6,7 @@ import { ExternalLink, LayoutDashboard, Loader2, PackageCheck, ShieldCheck, Truc
 import { supabase, type EscrowOrder } from "@/lib/supabase";
 import { explorerTxUrl, formatZec, shortZcashAddress } from "@/lib/zcash";
 import { BRAND_NAME, VAULT_NAME } from "@/lib/constants";
-import { cardClass, darkButtonClass, primaryButtonClass, secondaryButtonClass } from "@/lib/ui";
+import { cardClass, darkButtonClass, inputClass, primaryButtonClass, secondaryButtonClass } from "@/lib/ui";
 import { PageMessage, PageShell } from "@/components/page-shell";
 
 const stages = [
@@ -23,6 +23,8 @@ export default function OrderPage({ params }: { params: Promise<{ id: string }> 
   const [sellerView, setSellerView] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const [manualTxid, setManualTxid] = useState("");
+  const [manualError, setManualError] = useState<string | null>(null);
 
   useEffect(() => {
     let active = true;
@@ -88,6 +90,35 @@ export default function OrderPage({ params }: { params: Promise<{ id: string }> 
     finally { setBusy(false); }
   }
 
+  async function confirmPaymentId() {
+    setManualError(null);
+    const txid = manualTxid.trim().toLowerCase();
+    if (!/^[a-f0-9]{64}$/.test(txid)) {
+      setManualError("Paste the 64-character transaction ID from the Zingo! receipt.");
+      return;
+    }
+    setBusy(true);
+    try {
+      const response = await fetch("/api/relayer/verify-deposit", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ orderId: id, txid }),
+      });
+      const data = await response.json() as { success?: boolean; txid?: string; error?: string };
+      if (!response.ok || !data.success) {
+        throw new Error(data.error ?? "Unable to verify this payment ID.");
+      }
+      setOrder((current) => current
+        ? { ...current, status: "HELD_IN_ESCROW", fund_txid: data.txid ?? txid }
+        : current);
+      setManualTxid("");
+    } catch (reason) {
+      setManualError(reason instanceof Error ? reason.message : "Unable to verify this payment ID.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
   if (!order) return <PageShell><PageMessage icon={<Loader2 className="h-6 w-6 animate-spin text-slate-400" />}>Loading order…</PageMessage></PageShell>;
   const total = Number(order.amount) + Number(order.delivery_fee);
   const stageIndex = Math.max(0, stages.findIndex(([status]) => status === order.status));
@@ -108,6 +139,17 @@ export default function OrderPage({ params }: { params: Promise<{ id: string }> 
         })}</ol>
       </div>
       {sellerView && <div className={`${cardClass} mb-4 p-5`}><h2 className="mb-3 text-sm font-semibold text-white">Shielded payout destination</h2><p className="font-mono text-xs text-slate-400">{shortZcashAddress(order.vendor_address)}</p>{released && order.release_txid && <a className="mt-3 inline-flex items-center gap-1 text-xs text-emerald-400" href={explorerTxUrl(order.release_txid)} target="_blank" rel="noreferrer">View payout transaction <ExternalLink className="h-3.5 w-3.5" /></a>}</div>}
+      {!sellerView && order.status === "PENDING_PAYMENT" && <details className={`${cardClass} mb-4 p-4`}>
+        <summary className="cursor-pointer text-sm font-semibold text-primary-text">Manual Payment Verification (Zingo! Receipt)</summary>
+        <div className="mt-4 space-y-3">
+          <p className="text-xs leading-relaxed text-muted-text">Paste the transaction ID from your wallet after sending the exact amount and required TrustPay memo.</p>
+          <input value={manualTxid} onChange={(event) => setManualTxid(event.target.value)} placeholder="64-character transaction ID" className={`${inputClass} font-mono`} inputMode="text" autoComplete="off" />
+          {manualError && <p role="alert" className="text-xs text-red-300">{manualError}</p>}
+          <button type="button" onClick={() => void confirmPaymentId()} disabled={busy} className={`${primaryButtonClass} w-full`}>
+            {busy ? "Verifying payment…" : "Confirm Payment ID"}
+          </button>
+        </div>
+      </details>}
       {error && <p role="alert" className="mb-3 flex gap-2 rounded-xl border border-red-500/30 bg-red-500/10 p-3 text-sm text-red-300"><TriangleAlert className="h-4 w-4 shrink-0" />{error}</p>}
       <div className="space-y-3">
         {sellerView && order.status === "HELD_IN_ESCROW" && <button onClick={() => void updateStatus("DISPATCHED")} disabled={busy} className={`${darkButtonClass} w-full`}><Truck className="h-4 w-4" />{busy ? "Updating…" : "Mark as dispatched"}</button>}
