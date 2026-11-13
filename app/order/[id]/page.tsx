@@ -71,7 +71,7 @@ export default function OrderPage({ params }: { params: Promise<{ id: string }> 
   async function updateStatus(status: "DISPATCHED" | "DISPUTED") {
     setBusy(true); setError(null);
     try {
-      const response = await fetch(`/api/orders/${id}/status`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ status }) });
+      const response = await fetch(`/api/orders/${id}/status`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ status, key: status === "DISPATCHED" ? key : undefined }) });
       const data = await response.json() as { error?: string };
       if (!response.ok) throw new Error(data.error ?? "Unable to update order.");
     } catch (reason) { setError(reason instanceof Error ? reason.message : "Unable to update order."); }

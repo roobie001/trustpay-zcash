@@ -23,6 +23,7 @@ export function CreateEscrowModal({ open, onClose }: Props) {
   const [error, setError] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
   const [result, setResult] = useState<string | null>(null);
+  const [sellerResult, setSellerResult] = useState<string | null>(null);
   const [storeName, setStoreName] = useState("");
   const [socialHandle, setSocialHandle] = useState("");
   const [payoutAddress, setPayoutAddress] = useState("");
@@ -132,6 +133,9 @@ export function CreateEscrowModal({ open, onClose }: Props) {
       if (!response.ok || !data.id) throw new Error(data.error ?? "Failed to create order.");
       const link = `${window.location.origin}/pay/${data.id}`;
       setResult(link);
+      if (data.sellerKey) {
+        setSellerResult(`${window.location.origin}/order/${data.id}?key=${encodeURIComponent(data.sellerKey)}`);
+      }
       setItemTitle("");
       setAmount("");
       setDeliveryNotes("");
@@ -178,7 +182,7 @@ export function CreateEscrowModal({ open, onClose }: Props) {
           </form>
         )}
         {editing && <button type="button" onClick={() => setEditing(false)} className={`${secondaryButtonClass} mt-3 w-full`}>Cancel editing</button>}
-        {result && <div className="mt-5 rounded-2xl border border-emerald-500/30 bg-emerald-500/10 p-4"><p className="text-sm font-semibold text-emerald-300">Buyer link ready</p><p className="mt-2 break-all font-mono text-xs text-slate-300">{result}</p><div className="mt-3 flex gap-2"><button type="button" onClick={() => void copyValue(result)} className={`${primaryButtonClass} flex-1`}>{copied ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}1-Click Copy Link</button><a href={`https://wa.me/?text=${encodeURIComponent(`Pay securely via TrustPay: ${result}`)}`} target="_blank" rel="noreferrer" className={`${secondaryButtonClass} flex-1`}>Share to WhatsApp</a></div></div>}
+        {result && <div className="mt-5 rounded-2xl border border-emerald-500/30 bg-emerald-500/10 p-4"><p className="text-sm font-semibold text-emerald-300">Buyer link ready</p><p className="mt-2 break-all font-mono text-xs text-slate-300">{result}</p><div className="mt-3 flex gap-2"><button type="button" onClick={() => void copyValue(result)} className={`${primaryButtonClass} flex-1`}>{copied ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}1-Click Copy Link</button><a href={`https://wa.me/?text=${encodeURIComponent(`Pay securely via TrustPay: ${result}`)}`} target="_blank" rel="noreferrer" className={`${secondaryButtonClass} flex-1`}>Share to WhatsApp</a></div>{sellerResult && <button type="button" onClick={() => void copyValue(sellerResult)} className="mt-3 w-full text-xs text-brand">Copy seller dashboard link</button>}</div>}
         {error && <p role="alert" className="mt-4 flex gap-2 rounded-xl border border-red-500/30 bg-red-500/10 p-3 text-sm text-red-300"><TriangleAlert className="h-4 w-4 shrink-0" />{error}</p>}
       </div>
     </div>

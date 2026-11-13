@@ -1,3 +1,4 @@
+import { randomBytes } from "node:crypto";
 import { NextRequest, NextResponse } from "next/server";
 import { getSupabaseAdmin } from "@/lib/supabase-admin";
 import { isZcashAddress } from "@/lib/zcash";
@@ -133,7 +134,20 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    return NextResponse.json({ success: true, id: order.id, sellerKey: seller_secret_token });
+    const sellerDashboardKey = randomBytes(32).toString("hex");
+    const { error: secretError } = await admin.from("escrow_order_secrets").insert({
+      order_id: order.id,
+      seller_secret_key: sellerDashboardKey,
+    });
+    if (secretError) {
+      console.error("[orders] seller dashboard key creation failed:", secretError);
+      return NextResponse.json(
+        { success: false, error: "Order created, but the seller dashboard key could not be saved." },
+        { status: 500 }
+      );
+    }
+
+    return NextResponse.json({ success: true, id: order.id, sellerKey: sellerDashboardKey });
   } catch (error) {
     console.error("[orders] server error:", error);
     return NextResponse.json(
