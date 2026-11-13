@@ -3,7 +3,6 @@
 import { useState, type ReactNode } from "react";
 import { ArrowRight, Coins, LockKeyhole, ShieldCheck, Truck, Zap } from "lucide-react";
 import { BRAND_NAME, VAULT_NAME } from "@/lib/constants";
-import { ConnectWalletButton } from "@/components/connect-wallet-button";
 import { CreateEscrowModal } from "@/components/create-escrow-modal";
 
 const steps = [
@@ -20,13 +19,12 @@ export default function Home() {
   const [modalOpen, setModalOpen] = useState(false);
   return (
     <div className="flex flex-1 flex-col bg-canvas">
-      <header className="mx-auto mt-4 flex w-[calc(100%-2rem)] max-w-3xl items-center justify-between border-b border-border-subtle px-1 pb-4 sm:mt-6">
+      <header className="mx-auto mt-4 flex w-[calc(100%-2rem)] max-w-3xl items-center border-b border-border-subtle px-1 pb-4 sm:mt-6">
         <div className="flex items-center gap-3">
           <span className="flex h-8 w-8 items-center justify-center rounded-lg border border-border-subtle text-brand"><ShieldCheck className="h-4 w-4" /></span>
           <span className="font-semibold tracking-tight text-primary-text">{BRAND_NAME}</span>
           <span className="hidden rounded-full border border-border-subtle px-2.5 py-1 text-[11px] font-medium text-muted-text sm:inline-flex">Shielded Escrow</span>
         </div>
-        <ConnectWalletButton />
       </header>
 
       <main className="relative mx-auto flex w-full max-w-5xl flex-1 flex-col px-4 pb-14 sm:px-6">

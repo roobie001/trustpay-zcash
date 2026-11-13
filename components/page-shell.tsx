@@ -2,13 +2,12 @@ import Link from "next/link";
 import type { ReactNode } from "react";
 import { ShieldCheck } from "lucide-react";
 import { BRAND_NAME } from "@/lib/constants";
-import { ConnectWalletButton } from "@/components/connect-wallet-button";
 
-/** Background, brand header and wallet button shared by the buyer and seller pages. */
+/** Brand header shared by the buyer and seller pages. */
 export function PageShell({ children }: { children: ReactNode }) {
   return (
     <div className="flex flex-1 flex-col bg-canvas">
-      <header className="mx-auto mt-4 flex w-[calc(100%-2rem)] max-w-3xl items-center justify-between gap-3 border-b border-border-subtle px-1 pb-4 sm:mt-6">
+      <header className="mx-auto mt-4 flex w-[calc(100%-2rem)] max-w-3xl items-center border-b border-border-subtle px-1 pb-4 sm:mt-6">
         <Link href="/" className="flex items-center gap-2.5">
           <span className="flex h-8 w-8 items-center justify-center rounded-lg border border-border-subtle text-brand">
             <ShieldCheck className="h-4 w-4" />
@@ -20,7 +19,6 @@ export function PageShell({ children }: { children: ReactNode }) {
             Shielded Escrow
           </span>
         </Link>
-        <ConnectWalletButton />
       </header>
 
       <main className="relative flex flex-1 flex-col items-center px-4 pb-16 pt-4 sm:pt-8">
