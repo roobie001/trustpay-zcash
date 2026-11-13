@@ -3,6 +3,7 @@ import { JetBrains_Mono, Plus_Jakarta_Sans } from "next/font/google";
 import "./globals.css";
 import { BRAND_NAME } from "@/lib/constants";
 import { Providers } from "./providers";
+import BackgroundPattern from "@/components/BackgroundPattern";
 
 const sans = Plus_Jakarta_Sans({
   variable: "--font-sans",
@@ -43,6 +44,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
     <html lang="en" className={`${sans.variable} ${mono.variable} h-full antialiased`}>
       <body className="min-h-full bg-canvas text-primary-text">
+        <BackgroundPattern />
         <div className="relative z-10 flex min-h-screen flex-1 flex-col">
           <Providers>{children}</Providers>
         </div>

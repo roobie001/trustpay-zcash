@@ -18,7 +18,7 @@ function Badge({ icon, children }: { icon: ReactNode; children: ReactNode }) {
 export default function Home() {
   const [modalOpen, setModalOpen] = useState(false);
   return (
-    <div className="flex flex-1 flex-col bg-canvas">
+    <div className="flex flex-1 flex-col">
       <header className="mx-auto mt-4 flex w-[calc(100%-2rem)] max-w-3xl items-center border-b border-border-subtle px-1 pb-4 sm:mt-6">
         <div className="flex items-center gap-3">
           <span className="flex h-8 w-8 items-center justify-center rounded-lg border border-border-subtle text-brand"><ShieldCheck className="h-4 w-4" /></span>

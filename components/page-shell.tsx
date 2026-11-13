@@ -6,7 +6,7 @@ import { BRAND_NAME } from "@/lib/constants";
 /** Brand header shared by the buyer and seller pages. */
 export function PageShell({ children }: { children: ReactNode }) {
   return (
-    <div className="flex flex-1 flex-col bg-canvas">
+    <div className="flex flex-1 flex-col">
       <header className="mx-auto mt-4 flex w-[calc(100%-2rem)] max-w-3xl items-center border-b border-border-subtle px-1 pb-4 sm:mt-6">
         <Link href="/" className="flex items-center gap-2.5">
           <span className="flex h-8 w-8 items-center justify-center rounded-lg border border-border-subtle text-brand">
