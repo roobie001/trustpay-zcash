@@ -29,7 +29,7 @@ vendor revenue, and order metadata are not public on-chain.
 Set these variables in `.env.local`:
 
 ```env
-NEXT_PUBLIC_ZCASH_ESCROW_VAULT_ADDRESS=u1...
+NEXT_PUBLIC_ZCASH_ESCROW_VAULT_ADDRESS=utest1qx0z2p4lm9xwh3fe6jc0nj6qfmyj5sd5tere2kvvgsgvp8phempuhtykfy4gy3qdkaxak60svsq409dg7auxmmeaqutrg6jgevpew9a3
 NEXT_PUBLIC_ZCASH_EXPLORER_URL=https://zcashblockexplorer.com/tx
 ZCASH_RELAYER_URL=https://your-relayer.example
 NEXT_PUBLIC_SUPABASE_URL=...

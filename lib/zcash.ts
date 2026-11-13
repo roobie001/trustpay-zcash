@@ -40,8 +40,15 @@ declare global {
 }
 
 export function isZcashAddress(value: string): boolean {
+  if (typeof value !== "string") return false;
   const address = value.trim();
-  return /^(u1|utest1|ztestsapling1|zs1)[a-z0-9]{20,}$/i.test(address);
+  return /^(?:u1|utest1|zs1|ztestsapling1)[a-z0-9]{20,}$/i.test(address);
+}
+
+export function isTestnetZcashAddress(value: string): boolean {
+  if (typeof value !== "string") return false;
+  const address = value.trim();
+  return /^(?:utest1|ztestsapling1)[a-z0-9]{20,}$/i.test(address);
 }
 
 export function isValidZecInput(value: string): boolean {
@@ -104,6 +111,8 @@ export function buildZcashPaymentUri({
     throw new Error("A valid Zcash Unified Address is required.");
   if (!Number.isFinite(amountZec) || amountZec <= 0)
     throw new Error("Payment amount must be positive.");
+  if (Number(amountZec.toFixed(ZEC_DECIMALS)) !== amountZec)
+    throw new Error("Payment amount cannot have more than 8 decimal places.");
   const memoPayload = `TRUSTPAY:${orderId}${message ? `:${message}` : ""}`;
   const memoBytes = new TextEncoder().encode(memoPayload);
   if (memoBytes.length > ZCASH_MEMO_BYTES) {
@@ -129,7 +138,7 @@ export function loadEphemeralZcashWallet(): EphemeralZcashWallet | null {
   if (!raw) return null;
   try {
     const wallet = JSON.parse(raw) as EphemeralZcashWallet;
-    return wallet.network === "testnet" && isZcashAddress(wallet.address)
+    return wallet.network === "testnet" && isTestnetZcashAddress(wallet.address)
       ? wallet
       : null;
   } catch {

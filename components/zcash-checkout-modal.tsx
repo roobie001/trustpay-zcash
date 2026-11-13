@@ -43,14 +43,18 @@ export function ZcashCheckoutModal({
     () => false
   );
   const memo = orderMemoPayload(order.id);
-  const uri = useMemo(
-    () =>
-      buildZcashPaymentUri({
+  const uri = useMemo(() => {
+    try {
+      return buildZcashPaymentUri({
         address: order.escrow_vault_address,
         amountZec: amount,
         orderId: order.id,
         label: "TrustPay escrow",
-      }),
+      });
+    } catch {
+      return null;
+    }
+  },
     [amount, order.escrow_vault_address, order.id]
   );
 
@@ -114,7 +118,15 @@ export function ZcashCheckoutModal({
           memo,
         }),
       });
-      const result = await response.json() as { txid?: string; error?: string };
+      const responseText = await response.text();
+      let result: { txid?: string; error?: string } = {};
+      try {
+        result = JSON.parse(responseText) as { txid?: string; error?: string };
+      } catch {
+        throw new Error(
+          `The configured testnet relayer returned an unexpected response (${response.status}). Check NEXT_PUBLIC_ZCASH_TESTNET_RELAYER_URL.`
+        );
+      }
       if (!response.ok || !result.txid) throw new Error(result.error ?? "Testnet relayer did not accept the payment.");
       onPaymentSubmitted(result.txid, ephemeral.address);
     } catch (reason) {
@@ -147,9 +159,9 @@ export function ZcashCheckoutModal({
         </div>
 
         {tab === "scan" && <div className="mt-5 text-center">
-          <div className="mx-auto w-fit rounded-2xl bg-white p-3"><QRCodeSVG value={uri} size={210} includeMargin /></div>
+          {uri ? <><div className="mx-auto w-fit rounded-2xl bg-white p-3"><QRCodeSVG value={uri} size={210} includeMargin /></div>
           <p className="mt-4 text-sm text-muted-text">Scan this ZIP-321 payment QR, or open it directly in a compatible wallet.</p>
-          <a href={uri} className={`${primaryButtonClass} mt-4 w-full`}><Wallet className="h-4 w-4" />Open in Zcash Wallet</a>
+          <a href={uri} className={`${primaryButtonClass} mt-4 w-full`}><Wallet className="h-4 w-4" />Open in Zcash Wallet</a></> : <p role="alert" className="rounded-lg border border-red-500/30 bg-red-500/10 p-3 text-sm text-red-300">The escrow vault address is not a valid Zcash testnet address.</p>}
           <p className="mt-3 text-xs leading-relaxed text-muted-text">Use a shielded wallet so the encrypted memo is attached properly.</p>
         </div>}
 
