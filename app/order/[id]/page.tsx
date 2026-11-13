@@ -94,10 +94,10 @@ export default function OrderPage({ params }: { params: Promise<{ id: string }> 
     setBusy(true); setError(null);
     try {
       const response = await fetch(`/api/orders/${id}/release`, { method: "POST" });
-      const data = await readJsonResponse<{ success?: boolean; txid?: string; error?: string }>(response);
-      if (!response.ok) throw new Error(data.error ?? "Unable to release funds.");
+      const data = await readJsonResponse<{ success?: boolean; status?: string; txid?: string; payoutTxid?: string; error?: string }>(response);
+      if (!response.ok) throw new Error(data.error ?? `Release failed with status ${response.status}.`);
       if (!data.success) throw new Error(data.error ?? "Unable to release funds.");
-      setOrder((current) => current ? { ...current, status: "FUNDS_RELEASED", release_txid: data.txid ?? current.release_txid } : current);
+      setOrder((current) => current ? { ...current, status: "FUNDS_RELEASED", release_txid: data.payoutTxid ?? data.txid ?? current.release_txid } : current);
     } catch (reason) { setError(reason instanceof Error ? reason.message : "Unable to release funds."); }
     finally { setBusy(false); }
   }
