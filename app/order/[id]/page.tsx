@@ -16,6 +16,16 @@ const stages = [
   ["FUNDS_RELEASED", "Funds released privately", PackageCheck],
 ] as const;
 
+async function readJsonResponse<T extends object>(response: Response): Promise<T> {
+  const text = await response.text();
+  if (!text.trim()) return {} as T;
+  try {
+    return JSON.parse(text) as T;
+  } catch {
+    return { error: `Request failed with status ${response.status}.` } as T;
+  }
+}
+
 export default function OrderPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
   const key = useSearchParams().get("key");
@@ -74,7 +84,7 @@ export default function OrderPage({ params }: { params: Promise<{ id: string }> 
     setBusy(true); setError(null);
     try {
       const response = await fetch(`/api/orders/${id}/status`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ status, key: status === "DISPATCHED" ? key : undefined }) });
-      const data = await response.json() as { error?: string };
+      const data = await readJsonResponse<{ error?: string }>(response);
       if (!response.ok) throw new Error(data.error ?? "Unable to update order.");
     } catch (reason) { setError(reason instanceof Error ? reason.message : "Unable to update order."); }
     finally { setBusy(false); }
@@ -84,8 +94,10 @@ export default function OrderPage({ params }: { params: Promise<{ id: string }> 
     setBusy(true); setError(null);
     try {
       const response = await fetch(`/api/orders/${id}/release`, { method: "POST" });
-      const data = await response.json() as { error?: string };
+      const data = await readJsonResponse<{ success?: boolean; txid?: string; error?: string }>(response);
       if (!response.ok) throw new Error(data.error ?? "Unable to release funds.");
+      if (!data.success) throw new Error(data.error ?? "Unable to release funds.");
+      setOrder((current) => current ? { ...current, status: "FUNDS_RELEASED", release_txid: data.txid ?? current.release_txid } : current);
     } catch (reason) { setError(reason instanceof Error ? reason.message : "Unable to release funds."); }
     finally { setBusy(false); }
   }
