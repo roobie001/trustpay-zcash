@@ -32,6 +32,42 @@ export default function OrderPage({ params }: { params: Promise<{ id: string }> 
     return () => { active = false; void supabase.removeChannel(channel); };
   }, [id, key]);
 
+  useEffect(() => {
+    let active = true;
+    async function refreshStatus() {
+      try {
+        const response = await fetch(`/api/orders/${encodeURIComponent(id)}/status?ts=${Date.now()}`, {
+          cache: "no-store",
+          headers: { "cache-control": "no-cache" },
+        });
+        if (!response.ok) return;
+        const data = await response.json() as {
+          status?: EscrowOrder["status"];
+          fund_txid?: string | null;
+          release_txid?: string | null;
+        };
+        if (active && data.status) {
+          setOrder((current) => current
+            ? {
+                ...current,
+                status: data.status!,
+                fund_txid: data.fund_txid ?? current.fund_txid,
+                release_txid: data.release_txid ?? current.release_txid,
+              }
+            : current);
+        }
+      } catch {
+        // Supabase realtime remains active; a transient polling failure is recoverable.
+      }
+    }
+    void refreshStatus();
+    const interval = window.setInterval(() => void refreshStatus(), 4000);
+    return () => {
+      active = false;
+      window.clearInterval(interval);
+    };
+  }, [id]);
+
   async function updateStatus(status: "DISPATCHED" | "DISPUTED") {
     setBusy(true); setError(null);
     try {

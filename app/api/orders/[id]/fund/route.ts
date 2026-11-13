@@ -22,7 +22,7 @@ export async function POST(
 
   const { data: order, error: orderError } = await getSupabaseAdmin()
     .from("escrow_orders")
-    .select("id, status, escrow_vault_address")
+    .select("id, status, amount, escrow_vault_address")
     .eq("id", id)
     .maybeSingle();
   if (orderError || !order) {
@@ -45,7 +45,12 @@ export async function POST(
   const verification = await fetch(`${relayerUrl.replace(/\/$/, "")}/verify-deposit`, {
     method: "POST",
     headers: { "content-type": "application/json" },
-    body: JSON.stringify({ orderId: id, txid: body.txid, buyerAddress: body.buyerAddress }),
+    body: JSON.stringify({
+      orderId: id,
+      txid: body.txid,
+      address: body.buyerAddress,
+      amount: Number(order.amount),
+    }),
   });
   if (!verification.ok) {
     return NextResponse.json({ success: false, error: "Shielded deposit is not confirmed yet." }, { status: 409 });

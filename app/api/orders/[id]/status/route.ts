@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSupabaseAdmin } from "@/lib/supabase-admin";
 
+export const dynamic = "force-dynamic";
+
 const allowed = new Set(["DISPATCHED", "DISPUTED"]);
 
 export async function GET(
@@ -16,7 +18,9 @@ export async function GET(
   if (error || !data) {
     return NextResponse.json({ success: false, error: "Order not found." }, { status: 404 });
   }
-  return NextResponse.json({ success: true, ...data });
+  return NextResponse.json({ success: true, ...data }, {
+    headers: { "Cache-Control": "no-store, max-age=0" },
+  });
 }
 
 export async function POST(
