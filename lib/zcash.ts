@@ -29,7 +29,7 @@ export interface ZcashPaymentUriInput {
 export interface EphemeralZcashWallet {
   address: ZcashAddress;
   network: "testnet";
-  balanceZec: number;
+  balanceZec: number | null;
   createdAt: string;
 }
 
@@ -139,7 +139,7 @@ export function loadEphemeralZcashWallet(): EphemeralZcashWallet | null {
   try {
     const wallet = JSON.parse(raw) as EphemeralZcashWallet;
     return wallet.network === "testnet" && isTestnetZcashAddress(wallet.address)
-      ? wallet
+      ? { ...wallet, balanceZec: null }
       : null;
   } catch {
     return null;
@@ -150,7 +150,7 @@ export function createEphemeralZcashWallet(): EphemeralZcashWallet {
   const wallet: EphemeralZcashWallet = {
     address: `ztestsapling1${crypto.randomUUID().replace(/-/g, "")}`,
     network: "testnet",
-    balanceZec: 0,
+    balanceZec: null,
     createdAt: new Date().toISOString(),
   };
   window.localStorage.setItem(
