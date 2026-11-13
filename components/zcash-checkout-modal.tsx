@@ -10,12 +10,13 @@ import {
   encodeMemoBase64Url,
   formatZec,
   hasInjectedZcashWallet,
+  isTestnetZcashAddress,
   loadEphemeralZcashWallet,
   orderMemoPayload,
   type EphemeralZcashWallet,
 } from "@/lib/zcash";
 import { describeTxError, useZcashWallet } from "@/lib/use-escrow";
-import { cardClass, primaryButtonClass, secondaryButtonClass } from "@/lib/ui";
+import { cardClass, inputClass, primaryButtonClass, secondaryButtonClass } from "@/lib/ui";
 
 type CheckoutTab = "scan" | "manual" | "instant";
 
@@ -35,6 +36,8 @@ export function ZcashCheckoutModal({
   const [tab, setTab] = useState<CheckoutTab>("scan");
   const [copied, setCopied] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [manualTxid, setManualTxid] = useState("");
+  const [manualBuyerAddress, setManualBuyerAddress] = useState("");
   const [ephemeral, setEphemeral] = useState<EphemeralZcashWallet | null>(() => loadEphemeralZcashWallet());
   const wallet = useZcashWallet();
   const providerAvailable = useSyncExternalStore(
@@ -101,11 +104,10 @@ export function ZcashCheckoutModal({
   async function payWithInstantWallet() {
     if (!ephemeral) return;
     setError(null);
-    const relayerUrl = process.env.NEXT_PUBLIC_ZCASH_TESTNET_RELAYER_URL;
-    if (!relayerUrl) {
-      setError("Instant Browser Wallet needs NEXT_PUBLIC_ZCASH_TESTNET_RELAYER_URL for testnet demos.");
-      return;
-    }
+    const configuredRelayerUrl = process.env.NEXT_PUBLIC_ZCASH_TESTNET_RELAYER_URL?.trim();
+    const relayerUrl = configuredRelayerUrl && !/localhost|127\.0\.0\.1/i.test(configuredRelayerUrl)
+      ? configuredRelayerUrl
+      : "/api/relayer";
     try {
       const response = await fetch(`${relayerUrl.replace(/\/$/, "")}/testnet/fund`, {
         method: "POST",
@@ -127,11 +129,26 @@ export function ZcashCheckoutModal({
           `The configured testnet relayer returned an unexpected response (${response.status}). Check NEXT_PUBLIC_ZCASH_TESTNET_RELAYER_URL.`
         );
       }
+
       if (!response.ok || !result.txid) throw new Error(result.error ?? "Testnet relayer did not accept the payment.");
       onPaymentSubmitted(result.txid, ephemeral.address);
     } catch (reason) {
       setError(describeTxError(reason));
     }
+
+  }
+
+  function confirmManualPayment() {
+    setError(null);
+    if (!/^[a-f0-9]{64}$/i.test(manualTxid.trim())) {
+      setError("Enter the 64-character transaction ID from your wallet.");
+      return;
+    }
+    if (!isTestnetZcashAddress(manualBuyerAddress)) {
+      setError("Enter the sender's utest1 testnet address.");
+      return;
+    }
+    onPaymentSubmitted(manualTxid.trim(), manualBuyerAddress.trim());
   }
 
   if (!open) return null;
@@ -167,7 +184,10 @@ export function ZcashCheckoutModal({
 
         {tab === "manual" && <div className="mt-5 space-y-3">
           {fields.map(([label, value, name]) => <div key={name}><div className="mb-1 flex items-center justify-between"><label className="text-xs font-semibold text-muted-text">{label}</label><button type="button" onClick={() => void copy(value, name)} className="inline-flex items-center gap-1 text-xs text-brand">{copied === name ? <Check className="h-3.5 w-3.5" /> : <Copy className="h-3.5 w-3.5" />}{copied === name ? "Copied" : "Copy"}</button></div><div className="break-all rounded-lg border border-border-subtle bg-canvas p-3 font-mono text-xs text-primary-text">{value}</div></div>)}
-          <p className="rounded-xl border border-amber-500/30 bg-amber-500/10 p-3 text-xs leading-relaxed text-amber-200">The memo is required for automatic escrow matching. Omitting it can leave the deposit unrecognized.</p>
+          <p className="rounded-xl border border-amber-500/30 bg-amber-500/10 p-3 text-xs leading-relaxed text-amber-200">The memo is required for automatic escrow matching. After sending, enter the transaction ID and sender address below.</p>
+          <input value={manualTxid} onChange={(event) => setManualTxid(event.target.value)} className={`${inputClass} font-mono`} placeholder="Transaction ID (64 hex characters)" />
+          <input value={manualBuyerAddress} onChange={(event) => setManualBuyerAddress(event.target.value)} className={`${inputClass} font-mono`} placeholder="Sender address (utest1...)" />
+          <button type="button" onClick={confirmManualPayment} className={`${primaryButtonClass} w-full`}>Confirm payment sent</button>
           {wallet.isConnected ? <button type="button" onClick={() => void payWithProvider()} disabled={wallet.pending} className={`${primaryButtonClass} w-full`}>{wallet.pending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Shield className="h-4 w-4" />}Pay with connected wallet</button> : providerAvailable ? <button type="button" onClick={() => void connectProvider()} disabled={wallet.pending} className={`${secondaryButtonClass} w-full`}><Wallet className="h-4 w-4" />Quick-connect injected Zcash wallet</button> : <p className="rounded-xl border border-white/10 bg-slate-950/50 p-3 text-xs text-slate-400">No injected browser wallet detected. Use the QR, manual transfer, or Instant Browser Wallet tab.</p>}
         </div>}
 
