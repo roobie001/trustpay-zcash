@@ -47,12 +47,17 @@ export async function POST(
     if (!result.txid || !/^[a-f0-9]{64}$/i.test(result.txid)) {
       return NextResponse.json({ success: false, error: "Relayer returned an invalid payout transaction id." }, { status: 502 });
     }
-    const { error: updateError } = await admin
+    const { data: releasedOrder, error: updateError } = await admin
       .from("escrow_orders")
       .update({ status: "FUNDS_RELEASED", release_txid: result.txid })
       .eq("id", id)
-      .eq("status", "DISPATCHED");
+      .eq("status", "DISPATCHED")
+      .select("id, status, release_txid")
+      .maybeSingle();
     if (updateError) return NextResponse.json({ success: false, error: "Failed to record the payout." }, { status: 500 });
+    if (!releasedOrder) {
+      return NextResponse.json({ success: false, error: "Order was changed before the payout could be recorded." }, { status: 409 });
+    }
     return NextResponse.json({ success: true, message: "Funds released successfully.", txid: result.txid });
   } catch (error) {
     console.error("[orders/release] unexpected error:", error);
