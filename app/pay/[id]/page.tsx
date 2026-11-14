@@ -24,6 +24,7 @@ export default function PayPage({ params }: { params: Promise<{ id: string }> })
   const [txid, setTxid] = useState<string | null>(null);
   const [checkoutOpen, setCheckoutOpen] = useState(false);
   const [awaitingConfirmation, setAwaitingConfirmation] = useState(false);
+  const [simMode, setSimMode] = useState(() => typeof window !== "undefined" && new URLSearchParams(window.location.search).get("sim") === "true");
 
   useEffect(() => {
     let active = true;
@@ -50,6 +51,12 @@ export default function PayPage({ params }: { params: Promise<{ id: string }> })
 
   async function recordFunding(paymentTxid: string, buyerAddress: string) {
     setError(null);
+    if (paymentTxid.startsWith("txid_sim_")) {
+      setOrder((current) => current ? { ...current, status: "HELD_IN_ESCROW", fund_txid: paymentTxid } : current);
+      setTxid(paymentTxid);
+      setCheckoutOpen(false);
+      return;
+    }
     const response = await fetch("/api/escrow/fund", {
         method: "POST",
         headers: { "content-type": "application/json" },
@@ -115,12 +122,15 @@ export default function PayPage({ params }: { params: Promise<{ id: string }> })
           <div><label htmlFor="buyer-name" className={labelClass}>Your name</label><input id="buyer-name" value={buyerName} onChange={(e) => setBuyerName(e.target.value)} className={inputClass} /></div>
           <PhoneInput id="buyer-phone" label="Phone number" dialCode={dialCode} onDialCodeChange={setDialCode} value={buyerPhone} onChange={setBuyerPhone} />
           {error && <p role="alert" className="flex gap-2 rounded-lg border border-red-500/30 bg-red-500/10 px-3.5 py-2.5 text-sm text-red-300"><TriangleAlert className="h-4 w-4 shrink-0" />{error}</p>}
+          <button type="button" onClick={() => setSimMode((active) => !active)} className={`w-full rounded-lg border px-3 py-2 text-xs font-semibold transition ${simMode ? "border-brand/50 bg-brand/10 text-brand" : "border-border-subtle text-muted-text hover:text-primary-text"}`}>
+            ⚡ {simMode ? "Sim Mode active" : "Enable Sim Mode"}
+          </button>
           <button type="submit" className={`${primaryButtonClass} w-full py-3.5`}><Wallet className="h-4 w-4" />Choose private payment method</button>
         </form>
       )}
       {awaitingConfirmation && <p className="mt-4 rounded-xl border border-amber-500/30 bg-amber-500/10 p-3 text-center text-sm text-amber-200">Awaiting Shielded Confirmation… The tracker will update automatically.</p>}
       <Link href={`/order/${order.id}`} className="mx-auto mt-5 flex w-fit items-center gap-1 text-xs text-muted-text">View order status <ArrowRight className="h-3.5 w-3.5" /></Link>
-      <ZcashCheckoutModal open={checkoutOpen} order={order} amount={total} onClose={() => setCheckoutOpen(false)} onPaymentSubmitted={(paymentTxid, buyerAddress) => void recordFunding(paymentTxid, buyerAddress)} />
+      <ZcashCheckoutModal open={checkoutOpen} order={order} amount={total} simMode={simMode} onClose={() => setCheckoutOpen(false)} onPaymentSubmitted={(paymentTxid, buyerAddress) => void recordFunding(paymentTxid, buyerAddress)} />
     </PageShell>
   );
 }

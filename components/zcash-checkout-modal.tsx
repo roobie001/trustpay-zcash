@@ -24,12 +24,14 @@ export function ZcashCheckoutModal({
   open,
   order,
   amount,
+  simMode,
   onClose,
   onPaymentSubmitted,
 }: {
   open: boolean;
   order: EscrowOrder;
   amount: number;
+  simMode: boolean;
   onClose: () => void;
   onPaymentSubmitted: (txid: string, buyerAddress: string) => void;
 }) {
@@ -38,6 +40,8 @@ export function ZcashCheckoutModal({
   const [error, setError] = useState<string | null>(null);
   const [manualTxid, setManualTxid] = useState("");
   const [manualBuyerAddress, setManualBuyerAddress] = useState("");
+  const [simulating, setSimulating] = useState(false);
+  const [simulationStep, setSimulationStep] = useState("");
   const [ephemeral, setEphemeral] = useState<EphemeralZcashWallet | null>(() => loadEphemeralZcashWallet());
   const wallet = useZcashWallet();
   const providerAvailable = useSyncExternalStore(
@@ -135,7 +139,35 @@ export function ZcashCheckoutModal({
     } catch (reason) {
       setError(describeTxError(reason));
     }
+  }
 
+  async function simulatePayment() {
+      setError(null);
+      setSimulating(true);
+      try {
+        const simulatedWallet = ephemeral ?? createEphemeralZcashWallet();
+        if (!ephemeral) setEphemeral(simulatedWallet);
+        setSimulationStep("Broadcasting shielded transaction...");
+        await new Promise((resolve) => window.setTimeout(resolve, 1000));
+        setSimulationStep("Encrypting order ID in 512-byte memo...");
+        await new Promise((resolve) => window.setTimeout(resolve, 1000));
+        setSimulationStep("Confirming deposit in the escrow vault...");
+        await new Promise((resolve) => window.setTimeout(resolve, 1000));
+        const simulatedTxid = `txid_sim_${Date.now()}`;
+        const response = await fetch("/api/relayer/verify-deposit", {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({ orderId: order.id, txid: simulatedTxid, simulation: true }),
+        });
+        const result = await response.json() as { success?: boolean; error?: string };
+        if (!response.ok || !result.success) throw new Error(result.error ?? "Simulation verification failed.");
+        onPaymentSubmitted(simulatedTxid, simulatedWallet.address);
+      } catch (reason) {
+        setError(describeTxError(reason));
+      } finally {
+        setSimulating(false);
+        setSimulationStep("");
+      }
   }
 
   function confirmManualPayment() {
@@ -174,6 +206,16 @@ export function ZcashCheckoutModal({
         <div className="grid grid-cols-3 gap-1 rounded-lg border border-border-subtle bg-canvas p-1">
           {tabs.map(({ id, label, icon: Icon }) => <button key={id} type="button" onClick={() => { setTab(id); setError(null); }} className={`flex items-center justify-center gap-1 rounded-md px-2 py-2.5 text-[11px] font-semibold transition sm:text-xs ${tab === id ? "bg-brand text-canvas" : "text-muted-text hover:text-primary-text"}`}><Icon className="h-3.5 w-3.5" />{label}</button>)}
         </div>
+        {simMode && <div className="mt-4 rounded-xl border border-brand/30 bg-brand/10 p-4">
+          <div className="flex items-center justify-between gap-3">
+            <div><p className="text-sm font-semibold text-brand">⚡ Demo Simulation Mode</p><p className="mt-1 text-xs text-muted-text">No live wallet or network confirmation required.</p></div>
+            <span className="rounded-full border border-brand/30 px-2 py-1 text-[10px] font-semibold uppercase tracking-wide text-brand">Hackathon</span>
+          </div>
+          <button type="button" onClick={() => void simulatePayment()} disabled={simulating} className={`${primaryButtonClass} mt-4 w-full`}>
+            {simulating ? <Loader2 className="h-4 w-4 animate-spin" /> : <Shield className="h-4 w-4" />}
+            {simulating ? simulationStep : "Simulate Zingo! Wallet Payment"}
+          </button>
+        </div>}
 
         {tab === "scan" && <div className="mt-5 text-center">
           {uri ? <><div className="mx-auto w-fit rounded-2xl bg-white p-3"><QRCodeSVG value={uri} size={210} includeMargin /></div>

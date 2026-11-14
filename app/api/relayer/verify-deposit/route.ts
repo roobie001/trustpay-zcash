@@ -15,13 +15,15 @@ export async function POST(request: NextRequest) {
   const body = await request.json().catch(() => null) as {
     orderId?: unknown;
     txid?: unknown;
+    simulation?: unknown;
   } | null;
 
+  const isSimulation = body?.simulation === true && typeof body?.txid === "string" && /^txid_sim_\d+$/.test(body.txid);
   if (
     typeof body?.orderId !== "string" ||
     !body.orderId.trim() ||
     typeof body?.txid !== "string" ||
-    !/^[a-f0-9]{64}$/i.test(body.txid)
+    (!/^[a-f0-9]{64}$/i.test(body.txid) && !isSimulation)
   ) {
     return NextResponse.json(
       { success: false, error: "orderId and a valid 64-character transaction ID are required." },
@@ -31,7 +33,7 @@ export async function POST(request: NextRequest) {
 
   const admin = getSupabaseAdmin();
   const orderId = body.orderId.trim();
-  const txid = body.txid.toLowerCase();
+  const txid = isSimulation ? body.txid : body.txid.toLowerCase();
   const { data: updatedOrder, error: updateError } = await admin
     .from("escrow_orders")
     .update({
