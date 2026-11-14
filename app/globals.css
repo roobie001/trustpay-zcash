@@ -1,3 +1,4 @@
+@import url("https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap");
 @import "tailwindcss";
 
 :root {
@@ -9,6 +10,8 @@
   --muted: #8a93a2;
   --brand: #f4b728;
   --brand-hover: #e0a419;
+  --font-sans: "Plus Jakarta Sans", ui-sans-serif, system-ui, sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
 }
 
 @theme inline {
@@ -21,8 +24,8 @@
   --color-border-subtle: var(--border-subtle);
   --color-brand: var(--brand);
   --color-brand-hover: var(--brand-hover);
-  --font-sans: var(--font-sans);
-  --font-mono: var(--font-mono);
+  --font-sans: "Plus Jakarta Sans", ui-sans-serif, system-ui, sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
   --animate-step-in: step-in 220ms ease-out;
 
   @keyframes step-in {
