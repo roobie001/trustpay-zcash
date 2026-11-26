@@ -14,8 +14,8 @@ export interface BuyerProfile {
   name: string;
   dialCode: string;
   phone: string;
-  doorstep_address: string;
-  landmark: string;
+  doorstep_address?: string;
+  landmark?: string;
 }
 
 export interface DealRecord {

@@ -47,6 +47,8 @@ export async function POST(
     key?: string;
     rider_phone?: string;
     waybill_notes?: string;
+    digital_pickup?: boolean;
+    is_digital?: boolean;
     dispute_category?: string;
     message?: string;
     photoUrl?: string;
@@ -85,15 +87,28 @@ export async function POST(
       return NextResponse.json({ success: false, error: "Seller authorization is required." }, { status: 403 });
     }
 
-    // 2. Mandatory Dispatch Rider Phone Number
-    if (!body.rider_phone || typeof body.rider_phone !== "string" || !body.rider_phone.trim()) {
+    // 2. Either rider_phone OR digital_pickup is required
+    const isDigitalFulfillment = Boolean(body.digital_pickup || body.is_digital);
+
+    if (
+      !isDigitalFulfillment &&
+      (!body.rider_phone || typeof body.rider_phone !== "string" || !body.rider_phone.trim())
+    ) {
       return NextResponse.json(
-        { success: false, error: "Dispatch rider phone number is mandatory before marking order as dispatched." },
+        {
+          success: false,
+          error: "Dispatch rider phone number or digital/pickup fulfillment confirmation is required.",
+        },
         { status: 400 }
       );
     }
 
-    patch.rider_phone = body.rider_phone.trim();
+    patch.rider_phone = isDigitalFulfillment
+      ? body.rider_phone?.trim() || "Digital / Direct Pickup"
+      : body.rider_phone!.trim();
+    if (isDigitalFulfillment) {
+      patch.is_digital_fulfillment = true;
+    }
     if (body.waybill_notes) patch.waybill_notes = body.waybill_notes.trim();
     patch.dispatched_at = new Date().toISOString();
   }

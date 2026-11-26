@@ -270,18 +270,16 @@ export function DisputeDrawer({
                       key={reason}
                       type="button"
                       onClick={() => setSelectedReason(reason)}
-                      className={`flex min-h-[44px] items-center gap-2.5 rounded-xl border p-3 text-left text-xs font-medium transition-colors ${
-                        selectedReason === reason
-                          ? "border-amber-500/60 bg-amber-500/10 text-amber-300"
-                          : "border-slate-800 bg-[#030712] text-slate-400 hover:text-white"
-                      }`}
+                      className={`flex min-h-[44px] items-center gap-2.5 rounded-xl border p-3 text-left text-xs font-medium transition-colors ${selectedReason === reason
+                        ? "border-amber-500/60 bg-amber-500/10 text-amber-300"
+                        : "border-slate-800 bg-[#030712] text-slate-400 hover:text-white"
+                        }`}
                     >
                       <span
-                        className={`h-2.5 w-2.5 shrink-0 rounded-full border ${
-                          selectedReason === reason
-                            ? "border-amber-400 bg-amber-400"
-                            : "border-slate-600"
-                        }`}
+                        className={`h-2.5 w-2.5 shrink-0 rounded-full border ${selectedReason === reason
+                          ? "border-amber-400 bg-amber-400"
+                          : "border-slate-600"
+                          }`}
                       />
                       {reason}
                     </button>
@@ -392,19 +390,18 @@ export function DisputeDrawer({
                         className={`flex flex-col ${isMe ? "items-end" : "items-start"}`}
                       >
                         <div
-                          className={`max-w-[85%] rounded-2xl border p-3.5 text-xs ${
-                            isMe
-                              ? "border-amber-500/30 bg-amber-500/10 text-white"
-                              : "border-slate-800 bg-[#030712] text-slate-200"
-                          }`}
+                          className={`max-w-[85%] rounded-2xl border p-3.5 text-xs ${isMe
+                            ? "border-amber-500/30 bg-amber-500/10 text-white"
+                            : "border-slate-800 bg-[#030712] text-slate-200"
+                            }`}
                         >
                           <div className="mb-1.5 flex items-center justify-between gap-4 text-xs text-slate-400">
                             <span className="font-semibold uppercase tracking-wider">
                               {msg.sender === "seller"
                                 ? "Seller"
                                 : msg.sender === "buyer"
-                                ? "Buyer"
-                                : "Mediator"}
+                                  ? "Buyer"
+                                  : "Mediator"}
                               {isMe ? " (You)" : ""}
                             </span>
                             <span>{new Date(msg.createdAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}</span>

@@ -69,6 +69,7 @@ export default function OrderPage({ params }: { params: Promise<{ id: string }> 
 
   // Dispatch Modal state
   const [dispatchModalOpen, setDispatchModalOpen] = useState(false);
+  const [isDigitalPickup, setIsDigitalPickup] = useState(false);
   const [riderPhone, setRiderPhone] = useState("");
   const [waybillNotes, setWaybillNotes] = useState("");
   const [dispatchKeyInput, setDispatchKeyInput] = useState(urlKey || "");
@@ -224,8 +225,13 @@ export default function OrderPage({ params }: { params: Promise<{ id: string }> 
       return;
     }
 
-    if (!riderPhone.trim()) {
-      setDispatchError("Dispatch rider phone number is mandatory.");
+    if (!isDigitalPickup && !riderPhone.trim()) {
+      setDispatchError("Dispatch rider phone number is required (or select Digital / Direct Pickup Fulfillment).");
+      return;
+    }
+
+    if (isDigitalPickup && !waybillNotes.trim() && !riderPhone.trim()) {
+      setDispatchError("Please provide a fulfillment reference or delivery note for digital/pickup fulfillment.");
       return;
     }
 
@@ -237,8 +243,11 @@ export default function OrderPage({ params }: { params: Promise<{ id: string }> 
         body: JSON.stringify({
           status: "DISPATCHED",
           key,
-          rider_phone: riderPhone.trim(),
-          waybill_notes: waybillNotes.trim() || undefined,
+          digital_pickup: isDigitalPickup,
+          rider_phone: isDigitalPickup
+            ? (riderPhone.trim() || "Digital / Direct Pickup")
+            : riderPhone.trim(),
+          waybill_notes: waybillNotes.trim() || (isDigitalPickup ? "Digital delivery / direct pickup fulfillment" : undefined),
         }),
       });
 
@@ -327,7 +336,7 @@ export default function OrderPage({ params }: { params: Promise<{ id: string }> 
       `Amount: ${formatZec(totalAmount)}\n` +
       `Vendor: ${order.seller_name} (${shortZcashAddress(order.vendor_address)})\n` +
       `Deposited: ${order.paid_at || order.created_at} | Tx: ${order.fund_txid || "Confirmed"}\n` +
-      `Dispatched: ${metadata.dispatched_at || "Yes"} | Rider: ${metadata.rider_phone || "Assigned"}\n` +
+      `Dispatched: ${metadata.dispatched_at || "Yes"} | Fulfillment: ${metadata.rider_phone || "Assigned"}\n` +
       `Released: ${metadata.settled_at || new Date().toISOString()} | Payout Tx: ${order.release_txid || "Settled"}\n` +
       `Status: Delivered & Funds Released Privately\n` +
       `=======================================`;
@@ -364,13 +373,15 @@ export default function OrderPage({ params }: { params: Promise<{ id: string }> 
   const isAuthorizedSeller = Boolean(sellerAuthorized && (urlKey || activeSellerKey));
   const isSellerMode = isAuthorizedSeller && sellerView;
 
-  // Buyer full delivery address
+  // Buyer full delivery address (optional for digital/pickup orders)
   const rawBuyerAddress =
-    metadata.doorstep_address
-      ? metadata.landmark
-        ? `${metadata.doorstep_address} (Landmark: ${metadata.landmark})`
-        : metadata.doorstep_address
-      : order.buyer_address || "Doorstep Address not specified";
+    metadata.doorstep_address?.trim()
+      ? metadata.landmark?.trim()
+        ? `${metadata.doorstep_address.trim()} (Landmark: ${metadata.landmark.trim()})`
+        : metadata.doorstep_address.trim()
+      : order.buyer_address && order.buyer_address.trim() !== "Doorstep Address not specified"
+      ? order.buyer_address.trim()
+      : null;
 
   // Clean buyer phone for links
   const buyerCleanPhone = (order.buyer_phone || "").replace(/\D/g, "");
@@ -622,9 +633,9 @@ export default function OrderPage({ params }: { params: Promise<{ id: string }> 
                 </div>
 
                 <div className="space-y-2.5 text-xs font-mono text-slate-400">
-                  <div>Buyer Name: <span className="text-slate-300 font-sans">•••••••• ••••••••</span></div>
-                  <div>Phone Number: <span>••••••••••••••••</span></div>
-                  <div>Doorstep Address: <span>••••••••••••••••••••••••••••••••</span></div>
+                  <div>Buyer Name / Alias: <span className="text-slate-300 font-sans">•••••••• ••••••••</span></div>
+                  <div>Phone / Handle: <span>••••••••••••••••</span></div>
+                  <div>Delivery Address / Pickup: <span>••••••••••••••••••••••••••••••••</span></div>
                 </div>
               </div>
             ) : (
@@ -632,7 +643,7 @@ export default function OrderPage({ params }: { params: Promise<{ id: string }> 
               <div className="mt-4 space-y-4 text-xs sm:text-sm">
                 <div>
                   <span className="text-xs font-semibold uppercase tracking-wider text-slate-400">
-                    Buyer Full Name:
+                    Buyer Name / Alias:
                   </span>
                   <p className="mt-1 font-semibold text-white text-base">
                     {order.buyer_name || "Adebayo Davies"}
@@ -642,26 +653,35 @@ export default function OrderPage({ params }: { params: Promise<{ id: string }> 
                 <div>
                   <div className="flex items-center justify-between">
                     <span className="text-xs font-semibold uppercase tracking-wider text-slate-400">
-                      Doorstep Delivery Address &amp; Landmark:
+                      Delivery Address / Pickup Point:
                     </span>
-                    <button
-                      type="button"
-                      onClick={() => void copyBuyerAddressText(rawBuyerAddress)}
-                      className="inline-flex items-center gap-1 text-xs text-amber-500 hover:underline"
-                    >
-                      {copiedAddress ? <Check className="h-3 w-3" /> : <Copy className="h-3 w-3" />}
-                      {copiedAddress ? "Copied!" : "Copy Address"}
-                    </button>
+                    {rawBuyerAddress && (
+                      <button
+                        type="button"
+                        onClick={() => void copyBuyerAddressText(rawBuyerAddress)}
+                        className="inline-flex items-center gap-1 text-xs text-amber-500 hover:underline"
+                      >
+                        {copiedAddress ? <Check className="h-3 w-3" /> : <Copy className="h-3 w-3" />}
+                        {copiedAddress ? "Copied!" : "Copy Address"}
+                      </button>
+                    )}
                   </div>
-                  <p className="mt-1.5 rounded-xl border border-slate-800 bg-[#030712] p-3 font-medium text-slate-100">
-                    {rawBuyerAddress}
-                  </p>
+                  {rawBuyerAddress ? (
+                    <p className="mt-1.5 rounded-xl border border-slate-800 bg-[#030712] p-3 font-medium text-slate-100">
+                      {rawBuyerAddress}
+                    </p>
+                  ) : (
+                    <div className="mt-1.5 flex items-center gap-2 rounded-xl border border-amber-500/20 bg-amber-500/10 p-3 text-xs text-amber-300">
+                      <span className="h-1.5 w-1.5 rounded-full bg-amber-400 shrink-0" />
+                      <span>No address provided — coordinate pickup or digital delivery via buyer contact</span>
+                    </div>
+                  )}
                 </div>
 
                 {order.buyer_phone && (
                   <div>
                     <span className="text-xs font-semibold uppercase tracking-wider text-slate-400">
-                      Buyer Phone Number:
+                      Buyer Contact Phone / Handle:
                     </span>
                     <div className="mt-1.5 flex flex-wrap items-center gap-2.5">
                       <span className="rounded-xl border border-slate-800 bg-[#030712] px-3.5 py-2 font-mono text-slate-100">
@@ -760,7 +780,7 @@ export default function OrderPage({ params }: { params: Promise<{ id: string }> 
                 Your Delivery Handover PIN
               </h3>
               <p className="mt-1.5 text-xs sm:text-sm text-slate-300 leading-relaxed max-w-sm mx-auto">
-                Share this 4-digit code with the dispatch rider <span className="font-semibold text-white">ONLY</span> after inspecting your package.
+                Share this 4-digit code with the dispatch rider or seller <span className="font-semibold text-white">ONLY</span> after inspecting your package or receiving fulfillment.
               </p>
 
               {/* 4 Deterministic PIN Digit Boxes */}
@@ -775,7 +795,7 @@ export default function OrderPage({ params }: { params: Promise<{ id: string }> 
                 ))}
               </div>
 
-              {metadata.rider_phone && (
+              {metadata.rider_phone && metadata.rider_phone !== "Digital / Direct Pickup" ? (
                 <div className="mt-4 flex flex-col items-center justify-center gap-2 sm:flex-row">
                   <a
                     href={`tel:${metadata.rider_phone}`}
@@ -785,7 +805,12 @@ export default function OrderPage({ params }: { params: Promise<{ id: string }> 
                     Call Rider ({metadata.rider_phone})
                   </a>
                 </div>
-              )}
+              ) : metadata.waybill_notes ? (
+                <div className="mt-4 rounded-xl border border-slate-800 bg-[#030712] p-3 text-xs text-slate-300">
+                  <span className="font-semibold text-amber-400">Fulfillment Note: </span>
+                  {metadata.waybill_notes}
+                </div>
+              ) : null}
             </div>
           )}
 
@@ -883,13 +908,15 @@ export default function OrderPage({ params }: { params: Promise<{ id: string }> 
             </div>
 
             <div className="flex items-center justify-between border-b border-slate-800/60 pb-2.5">
-              <span className="text-slate-400">Dispatched with Rider:</span>
+              <span className="text-slate-400">Dispatched / Fulfilled:</span>
               <div className="text-right">
                 <span className="font-mono text-slate-200 tabular-nums">
                   {metadata.dispatched_at ? new Date(metadata.dispatched_at).toLocaleString() : "Verified"}
                 </span>
                 {metadata.rider_phone && (
-                  <p className="text-[11px] text-slate-400">Rider: {metadata.rider_phone}</p>
+                  <p className="text-[11px] text-slate-400">
+                    {metadata.rider_phone === "Digital / Direct Pickup" ? "Digital / Pickup Fulfillment" : `Rider: ${metadata.rider_phone}`}
+                  </p>
                 )}
               </div>
             </div>
@@ -940,7 +967,7 @@ export default function OrderPage({ params }: { params: Promise<{ id: string }> 
             <div className="mb-4 flex items-center justify-between">
               <div className="flex items-center gap-2.5">
                 <Truck className="h-5 w-5 text-amber-500" />
-                <h3 className="text-base font-semibold text-white">Confirm Dispatch with Rider</h3>
+                <h3 className="text-base font-semibold text-white">Confirm Order Dispatch</h3>
               </div>
               <button
                 type="button"
@@ -952,27 +979,63 @@ export default function OrderPage({ params }: { params: Promise<{ id: string }> 
             </div>
 
             <p className="text-xs text-slate-300 leading-relaxed">
-              To protect both parties, entering a valid Dispatch Rider Phone Number is mandatory before
-              moving the order to Dispatched.
+              Move this escrow to dispatched. For physical delivery, enter your rider&apos;s phone. For digital goods or direct pickup, check Digital / Direct Pickup Fulfillment.
             </p>
 
             <form onSubmit={handleDispatchSubmit} className="mt-4 space-y-4">
-              <div>
-                <label className={labelClass}>Dispatch Rider Phone Number *</label>
+              {/* Digital / Direct Pickup Fulfillment Checkbox */}
+              <label className="flex items-start gap-2.5 rounded-xl border border-slate-800 bg-[#030712] p-3 text-xs text-slate-300 cursor-pointer hover:border-slate-700 transition">
                 <input
-                  value={riderPhone}
-                  onChange={(e) => setRiderPhone(e.target.value)}
-                  placeholder="e.g. +2348012345678"
-                  className={inputClass}
+                  type="checkbox"
+                  checked={isDigitalPickup}
+                  onChange={(e) => {
+                    setIsDigitalPickup(e.target.checked);
+                    if (e.target.checked && !waybillNotes) {
+                      setWaybillNotes("Digital delivery / direct pickup fulfillment");
+                    }
+                  }}
+                  className="mt-0.5 h-4 w-4 rounded border-slate-700 bg-slate-900 text-amber-500 focus:ring-amber-500"
                 />
-              </div>
+                <div>
+                  <span className="font-semibold text-white block">Digital / Direct Pickup Fulfillment</span>
+                  <span className="text-slate-400 text-[11px]">No rider needed — coordinate pickup or digital fulfillment directly with the buyer.</span>
+                </div>
+              </label>
+
+              {!isDigitalPickup ? (
+                <div>
+                  <label className={labelClass}>Dispatch Rider Phone Number *</label>
+                  <input
+                    value={riderPhone}
+                    onChange={(e) => setRiderPhone(e.target.value)}
+                    placeholder="e.g. +2348012345678"
+                    className={inputClass}
+                  />
+                </div>
+              ) : (
+                <div>
+                  <label className={labelClass}>Coordination Phone / Channel (Optional)</label>
+                  <input
+                    value={riderPhone}
+                    onChange={(e) => setRiderPhone(e.target.value)}
+                    placeholder="e.g. WhatsApp, phone, or leave blank"
+                    className={inputClass}
+                  />
+                </div>
+              )}
 
               <div>
-                <label className={labelClass}>Waybill / Tracking Reference (Optional)</label>
+                <label className={labelClass}>
+                  {isDigitalPickup ? "Fulfillment Note / Reference *" : "Waybill / Tracking Reference (Optional)"}
+                </label>
                 <input
                   value={waybillNotes}
                   onChange={(e) => setWaybillNotes(e.target.value)}
-                  placeholder="e.g. GIGM-98234 or Gokada #481"
+                  placeholder={
+                    isDigitalPickup
+                      ? "e.g. Sent via email / Telegram, or Pickup at Store"
+                      : "e.g. GIGM-98234 or Gokada #481"
+                  }
                   className={inputClass}
                 />
               </div>
@@ -997,11 +1060,15 @@ export default function OrderPage({ params }: { params: Promise<{ id: string }> 
 
               <button
                 type="submit"
-                disabled={busy || !riderPhone.trim()}
+                disabled={
+                  busy ||
+                  (!isDigitalPickup && !riderPhone.trim()) ||
+                  (isDigitalPickup && !waybillNotes.trim() && !riderPhone.trim())
+                }
                 className={`${primaryButtonClass} w-full`}
               >
                 {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Truck className="h-4 w-4" />}
-                Confirm Order Dispatched
+                {isDigitalPickup ? "Confirm Digital / Pickup Fulfillment" : "Confirm Order Dispatched"}
               </button>
             </form>
           </div>

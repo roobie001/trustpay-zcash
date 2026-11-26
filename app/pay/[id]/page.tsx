@@ -116,14 +116,17 @@ export default function PayPage({ params }: { params: Promise<{ id: string }> })
 
     const phone = toE164(dialCode, buyerPhone);
     if (!buyerName.trim() || !phone) {
-      setError("Please enter your name and a valid WhatsApp phone number.");
+      setError("Please enter your name / alias and a valid WhatsApp contact number.");
       return;
     }
 
-    if (!doorstepAddress.trim()) {
-      setError("Please enter your doorstep delivery address.");
-      return;
-    }
+    const trimmedAddress = doorstepAddress.trim();
+    const trimmedLandmark = landmark.trim();
+    const fullDeliveryAddress = trimmedAddress
+      ? trimmedLandmark
+        ? `${trimmedAddress} (Landmark: ${trimmedLandmark})`
+        : trimmedAddress
+      : null;
 
     // Save buyer profile locally if checked
     if (saveLocally) {
@@ -131,25 +134,23 @@ export default function PayPage({ params }: { params: Promise<{ id: string }> })
         name: buyerName.trim(),
         dialCode,
         phone: buyerPhone.trim(),
-        doorstep_address: doorstepAddress.trim(),
-        landmark: landmark.trim(),
+        doorstep_address: trimmedAddress || undefined,
+        landmark: trimmedLandmark || undefined,
       });
     }
 
-    // Persist buyer details into order metadata (with doorstep & landmark)
+    // Persist buyer details into order metadata (with doorstep & landmark if provided)
     try {
-      const fullDeliveryAddress = landmark.trim()
-        ? `${doorstepAddress.trim()} (Landmark: ${landmark.trim()})`
-        : doorstepAddress.trim();
-
-      await fetch(`/api/orders/${order.id}/meta`, {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({
-          doorstep_address: doorstepAddress.trim(),
-          landmark: landmark.trim(),
-        }),
-      });
+      if (trimmedAddress || trimmedLandmark) {
+        await fetch(`/api/orders/${order.id}/meta`, {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({
+            doorstep_address: trimmedAddress || undefined,
+            landmark: trimmedLandmark || undefined,
+          }),
+        });
+      }
 
       await supabase
         .from("escrow_orders")
@@ -325,7 +326,7 @@ export default function PayPage({ params }: { params: Promise<{ id: string }> })
           <div className="border-b border-slate-800/80 pb-4">
             <div className="flex items-center justify-between">
               <h3 className="text-base sm:text-lg font-semibold tracking-tight text-white">
-                Doorstep Delivery Details
+                Contact &amp; Delivery Details
               </h3>
               <span className="inline-flex items-center gap-1 rounded-full border border-emerald-500/30 bg-emerald-500/10 px-2.5 py-0.5 text-xs font-medium text-emerald-400">
                 <EyeOff className="h-3 w-3" />
@@ -333,26 +334,26 @@ export default function PayPage({ params }: { params: Promise<{ id: string }> })
               </span>
             </div>
             <p className="mt-1 text-xs text-slate-400 leading-relaxed">
-              Contact and address remain masked from the seller until escrow deposit is locked on-chain.
+              Contact and delivery details remain masked from the seller until escrow deposit is locked on-chain.
             </p>
           </div>
 
           <div>
             <label htmlFor="buyer-name" className={labelClass}>
-              Your Full Name *
+              Buyer Name / Alias *
             </label>
             <input
               id="buyer-name"
               value={buyerName}
               onChange={(e) => setBuyerName(e.target.value)}
-              placeholder="e.g. Adebayo Davies"
+              placeholder="e.g. Adebayo Davies or @pseudonym"
               className={inputClass}
             />
           </div>
 
           <PhoneInput
             id="buyer-phone"
-            label="WhatsApp Phone Number *"
+            label="Contact Phone / Handle *"
             dialCode={dialCode}
             onDialCodeChange={setDialCode}
             value={buyerPhone}
@@ -361,26 +362,29 @@ export default function PayPage({ params }: { params: Promise<{ id: string }> })
 
           <div>
             <label htmlFor="doorstep-address" className={labelClass}>
-              Doorstep Delivery Address *
+              Delivery Address or Pickup Point <span className="font-normal text-slate-400">(Optional)</span>
             </label>
             <input
               id="doorstep-address"
               value={doorstepAddress}
               onChange={(e) => setDoorstepAddress(e.target.value)}
-              placeholder="Street address, City, State"
+              placeholder="Street address, pickup hub, or leave blank for digital delivery"
               className={inputClass}
             />
+            <p className="mt-1 text-[11px] text-slate-400 leading-relaxed">
+              Delivery Address or Pickup Point (Optional — leave blank for digital delivery or private coordination).
+            </p>
           </div>
 
           <div>
             <label htmlFor="landmark" className={labelClass}>
-              Nearest Landmark <span className="font-normal text-slate-500">(optional)</span>
+              Nearest Landmark or Delivery Note <span className="font-normal text-slate-400">(Optional)</span>
             </label>
             <input
               id="landmark"
               value={landmark}
               onChange={(e) => setLandmark(e.target.value)}
-              placeholder="e.g. Beside City Mall, Landmark"
+              placeholder="e.g. Beside City Mall, or Telegram handle"
               className={inputClass}
             />
           </div>
@@ -392,7 +396,7 @@ export default function PayPage({ params }: { params: Promise<{ id: string }> })
               onChange={(e) => setSaveLocally(e.target.checked)}
               className="h-4 w-4 rounded border-slate-700 bg-slate-900 text-amber-500 focus:ring-amber-500"
             />
-            Save my delivery details locally for faster checkout next time
+            Save my details locally for faster checkout next time
           </label>
 
           {error && (
