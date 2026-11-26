@@ -30,10 +30,10 @@ export const metadata: Metadata = {
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
-    <html lang="en" className="h-full antialiased">
-      <body className="min-h-full bg-canvas text-primary-text">
+    <html lang="en" className="h-full antialiased overflow-x-hidden">
+      <body className="min-h-full bg-canvas text-primary-text overflow-x-hidden w-full">
         <BackgroundPattern />
-        <div className="relative z-10 flex min-h-screen flex-1 flex-col">
+        <div className="relative z-10 flex min-h-screen flex-1 flex-col overflow-x-hidden w-full">
           <Providers>{children}</Providers>
         </div>
       </body>

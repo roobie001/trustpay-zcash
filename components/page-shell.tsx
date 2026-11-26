@@ -4,12 +4,12 @@ import { BrandLockup } from "@/components/BrandLogo";
 /** Brand header shared by the buyer checkout and order tracker pages. */
 export function PageShell({ children }: { children: ReactNode }) {
   return (
-    <div className="flex min-h-screen flex-1 flex-col bg-[#030712] text-slate-100">
-      <header className="mx-auto mt-3 flex w-[calc(100%-2rem)] max-w-5xl items-center justify-between border-b border-slate-800/80 px-2 pb-4 sm:mt-5">
+    <div className="flex min-h-screen flex-1 flex-col bg-[#030712] text-slate-100 overflow-x-hidden w-full">
+      <header className="mx-auto w-full max-w-5xl border-b border-slate-800/80 px-4 pt-3 pb-3 sm:px-6 sm:pt-5 sm:pb-4">
         <BrandLockup href="/" subtitle="Shielded Escrow" />
       </header>
 
-      <main className="relative flex flex-1 flex-col items-center px-4 pb-20 pt-6 sm:px-6 sm:pt-10">
+      <main className="relative flex flex-1 flex-col items-center px-4 pb-20 pt-6 sm:px-6 sm:pt-10 w-full overflow-x-hidden">
         <div className="w-full max-w-xl">{children}</div>
       </main>
     </div>

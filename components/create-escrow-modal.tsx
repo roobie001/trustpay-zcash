@@ -336,28 +336,32 @@ export function CreateEscrowModal({ open, onClose }: Props) {
                 TrustPay Vendor
               </p>
               {/* Testnet vs Mainnet Switcher */}
-              <div className="flex rounded-full border border-slate-800 bg-[#030712] p-0.5 text-xs font-semibold">
+              <div className="flex shrink-0 rounded-full border border-slate-800 bg-[#030712] p-0.5 text-xs font-semibold">
                 <button
                   type="button"
                   onClick={() => handleToggleNetwork("testnet")}
-                  className={`rounded-full px-2.5 py-0.5 transition ${
+                  className={`rounded-full px-2 py-0.5 transition ${
                     network === "testnet"
                       ? "bg-amber-500 text-[#030712] font-bold"
                       : "text-slate-400 hover:text-slate-200"
                   }`}
+                  title="Switch to Zcash Testnet (TAZ)"
                 >
-                  TAZ Testnet
+                  <span>TAZ</span>
+                  <span className="hidden sm:inline">&nbsp;Testnet</span>
                 </button>
                 <button
                   type="button"
                   onClick={() => handleToggleNetwork("mainnet")}
-                  className={`rounded-full px-2.5 py-0.5 transition ${
+                  className={`rounded-full px-2 py-0.5 transition ${
                     network === "mainnet"
                       ? "bg-amber-500 text-[#030712] font-bold"
                       : "text-slate-400 hover:text-slate-200"
                   }`}
+                  title="Switch to Zcash Mainnet (ZEC)"
                 >
-                  ZEC Mainnet
+                  <span>ZEC</span>
+                  <span className="hidden sm:inline">&nbsp;Mainnet</span>
                 </button>
               </div>
             </div>

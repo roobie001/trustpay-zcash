@@ -90,9 +90,9 @@ export function BrandLockup({
   subtitle?: string;
 }) {
   const content = (
-    <div className="flex items-center gap-2.5 sm:gap-3">
-      <TrustPayLogo className="h-8 w-8 sm:h-9 sm:w-9" />
-      <div className="flex items-baseline gap-2">
+    <div className="flex shrink-0 items-center gap-2 sm:gap-2.5">
+      <TrustPayLogo className="h-8 w-8 sm:h-9 sm:w-9 shrink-0" />
+      <div className="flex items-baseline gap-2 shrink-0">
         <span className="text-xl sm:text-2xl font-bold tracking-tight text-white">
           Trust<span className="text-amber-500">Pay</span>
         </span>
@@ -107,7 +107,7 @@ export function BrandLockup({
 
   if (href) {
     return (
-      <Link href={href} className="group transition hover:opacity-95">
+      <Link href={href} className="group shrink-0 transition hover:opacity-95">
         {content}
       </Link>
     );

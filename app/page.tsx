@@ -55,66 +55,93 @@ export default function Home() {
   }
 
   return (
-    <div className="flex min-h-screen flex-1 flex-col bg-[#030712] text-slate-100">
+    <div className="flex min-h-screen flex-1 flex-col bg-[#030712] text-slate-100 overflow-x-hidden w-full">
       {/* Top Navbar */}
-      <header className="mx-auto mt-3 flex w-[calc(100%-2rem)] max-w-5xl items-center justify-between border-b border-slate-800/80 px-2 pb-4 sm:mt-5">
-        <BrandLockup href="/" subtitle="Shielded Escrow" />
+      <header className="mx-auto w-full max-w-5xl border-b border-slate-800/80 px-4 pt-3 pb-3 sm:px-6 sm:pt-5 sm:pb-4">
+        {/* Top Row: Brand Lockup + Compact Network Toggle + Desktop Dashboard */}
+        <div className="flex items-center justify-between gap-3">
+          <BrandLockup href="/" subtitle="Shielded Escrow" />
 
-        <div className="flex items-center gap-2 sm:gap-3">
-          {/* Testnet vs Mainnet Switcher */}
-          <div className="flex rounded-full border border-slate-800 bg-[#0F172A] p-1 text-xs font-semibold shadow-inner">
+          <div className="flex shrink-0 items-center gap-2 sm:gap-3">
+            {/* Testnet vs Mainnet Switcher (Compact single-line on mobile, full label on desktop) */}
+            <div className="flex shrink-0 rounded-full border border-slate-800 bg-[#0F172A] p-1 text-xs font-semibold shadow-inner">
+              <button
+                type="button"
+                onClick={() => handleToggleNetwork("testnet")}
+                className={`rounded-full px-2.5 py-1 text-xs transition ${
+                  network === "testnet"
+                    ? "bg-amber-500 text-[#030712] font-bold shadow"
+                    : "text-slate-400 hover:text-slate-200"
+                }`}
+                title="Switch to Zcash Testnet (TAZ)"
+              >
+                <span>TAZ</span>
+                <span className="hidden sm:inline">&nbsp;Testnet</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => handleToggleNetwork("mainnet")}
+                className={`rounded-full px-2.5 py-1 text-xs transition ${
+                  network === "mainnet"
+                    ? "bg-amber-500 text-[#030712] font-bold shadow"
+                    : "text-slate-400 hover:text-slate-200"
+                }`}
+                title="Switch to Zcash Mainnet (ZEC)"
+              >
+                <span>ZEC</span>
+                <span className="hidden sm:inline">&nbsp;Mainnet</span>
+              </button>
+            </div>
+
+            {/* Desktop Dashboard Button */}
             <button
               type="button"
-              onClick={() => handleToggleNetwork("testnet")}
-              className={`rounded-full px-2.5 py-1 text-xs transition ${
-                network === "testnet"
-                  ? "bg-amber-500 text-[#030712] font-bold shadow"
-                  : "text-slate-400 hover:text-slate-200"
-              }`}
+              onClick={() => setSellerDashOpen(true)}
+              className="hidden sm:inline-flex min-h-[40px] items-center gap-1.5 rounded-xl border border-slate-700/80 bg-slate-900/90 px-3.5 py-2 text-xs font-semibold text-slate-200 transition hover:bg-slate-800 hover:text-white shrink-0"
             >
-              TAZ Testnet
-            </button>
-            <button
-              type="button"
-              onClick={() => handleToggleNetwork("mainnet")}
-              className={`rounded-full px-2.5 py-1 text-xs transition ${
-                network === "mainnet"
-                  ? "bg-amber-500 text-[#030712] font-bold shadow"
-                  : "text-slate-400 hover:text-slate-200"
-              }`}
-            >
-              ZEC Mainnet
+              <LayoutDashboard className="h-4 w-4 text-amber-500" />
+              <span>Seller Dashboard</span>
             </button>
           </div>
+        </div>
 
+        {/* Mobile Action Bar (< 640px / sm:): Dashboard + Recent Deals */}
+        <div className="mt-2.5 flex items-center gap-2 sm:hidden w-full">
           <button
             type="button"
             onClick={() => setSellerDashOpen(true)}
-            className="inline-flex min-h-[40px] items-center gap-1.5 rounded-xl border border-slate-700/80 bg-slate-900/90 px-3.5 py-2 text-xs font-semibold text-slate-200 transition hover:bg-slate-800 hover:text-white"
+            className="flex flex-1 min-h-[38px] items-center justify-center gap-1.5 rounded-xl border border-slate-700/80 bg-slate-900/90 px-3 py-1.5 text-xs font-semibold text-slate-200 transition hover:bg-slate-800 hover:text-white"
           >
-            <LayoutDashboard className="h-4 w-4 text-amber-500" />
-            <span className="hidden sm:inline">Seller</span> Dashboard
+            <LayoutDashboard className="h-3.5 w-3.5 text-amber-500" />
+            <span>Seller Dashboard</span>
           </button>
+          <a
+            href="#recent-deals-heading"
+            className="flex flex-1 min-h-[38px] items-center justify-center gap-1.5 rounded-xl border border-slate-800 bg-[#0F172A] px-3 py-1.5 text-xs font-semibold text-slate-300 transition hover:bg-slate-800 hover:text-white"
+          >
+            <Coins className="h-3.5 w-3.5 text-amber-500" />
+            <span>Recent Deals</span>
+          </a>
         </div>
       </header>
 
       {/* Main Content Area */}
-      <main className="relative mx-auto flex w-full max-w-5xl flex-1 flex-col px-4 pb-20 sm:px-6">
+      <main className="relative mx-auto flex w-full max-w-5xl flex-1 flex-col px-4 pb-20 sm:px-6 overflow-x-hidden">
         {/* Hero Section */}
-        <section className="mx-auto flex max-w-3xl flex-col items-center pb-16 pt-16 text-center sm:pb-24 sm:pt-24">
+        <section className="mx-auto flex w-full max-w-3xl flex-col items-center px-2 pb-12 pt-10 text-center sm:px-0 sm:pb-24 sm:pt-20">
           <p className="mb-4 text-xs font-semibold uppercase tracking-[0.2em] text-amber-500">
             Private Escrow for Social Commerce
           </p>
-          <h1 className="text-3xl font-bold leading-[1.12] tracking-tight text-white sm:text-5xl md:text-6xl">
+          <h1 className="text-3xl font-bold leading-[1.14] tracking-tight text-white sm:text-5xl md:text-6xl">
             Trade with confidence. <br className="hidden sm:inline" />
             Keep your payment private.
           </h1>
-          <p className="mt-6 max-w-2xl text-base leading-relaxed text-slate-300 sm:text-lg">
+          <p className="mt-5 sm:mt-6 max-w-2xl px-2 text-base leading-relaxed text-slate-300 sm:px-0 sm:text-lg">
             Create a focused Zcash shielded escrow link for every sale. Balances, payments, and addresses
             stay encrypted until delivery is confirmed.
           </p>
 
-          <div className="mt-8 flex flex-wrap justify-center gap-3">
+          <div className="mt-7 sm:mt-8 flex flex-wrap justify-center gap-2 sm:gap-3">
             <Badge icon={<Zap className="h-4 w-4 text-amber-500" />}>Shielded Settlement</Badge>
             <Badge icon={<ShieldCheck className="h-4 w-4 text-emerald-400" />}>Encrypted Memos</Badge>
             <Badge icon={<Coins className="h-4 w-4 text-amber-500" />}>Private ZEC</Badge>
@@ -123,7 +150,7 @@ export default function Home() {
           <button
             type="button"
             onClick={() => setModalOpen(true)}
-            className="group mt-10 inline-flex min-h-[52px] items-center justify-center gap-2.5 rounded-xl bg-amber-500 px-8 text-base font-semibold text-[#030712] shadow-xl shadow-amber-500/10 transition hover:bg-amber-400 active:scale-[0.99]"
+            className="group mt-8 sm:mt-10 inline-flex min-h-[50px] sm:min-h-[52px] w-full sm:w-auto max-w-xs items-center justify-center gap-2.5 rounded-xl bg-amber-500 px-8 text-base font-semibold text-[#030712] shadow-xl shadow-amber-500/10 transition hover:bg-amber-400 active:scale-[0.99]"
           >
             Create Escrow Link
             <ArrowRight className="h-4 w-4 transition group-hover:translate-x-1" />
