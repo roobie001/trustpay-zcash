@@ -1,13 +1,15 @@
 "use client";
 
-import { useState, type ReactNode } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import {
   ArrowRight,
   Coins,
   LayoutDashboard,
   LockKeyhole,
+  Menu,
   ShieldCheck,
   Truck,
+  X,
   Zap,
 } from "lucide-react";
 import { VAULT_NAME } from "@/lib/constants";
@@ -47,6 +49,7 @@ function Badge({ icon, children }: { icon: ReactNode; children: ReactNode }) {
 export default function Home() {
   const [modalOpen, setModalOpen] = useState(false);
   const [sellerDashOpen, setSellerDashOpen] = useState(false);
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [network, setNetwork] = useState<ZcashNetwork>(() => getZcashNetwork());
 
   function handleToggleNetwork(net: ZcashNetwork) {
@@ -54,42 +57,61 @@ export default function Home() {
     setZcashNetwork(net);
   }
 
+  // Close mobile drawer when resizing to desktop
+  useEffect(() => {
+    const mql = window.matchMedia("(min-width: 640px)");
+    function handleResize(e: MediaQueryListEvent) {
+      if (e.matches) setMobileMenuOpen(false);
+    }
+    mql.addEventListener("change", handleResize);
+    return () => mql.removeEventListener("change", handleResize);
+  }, []);
+
+  // Close mobile drawer on Escape key
+  useEffect(() => {
+    if (!mobileMenuOpen) return;
+    function handleKeyDown(e: KeyboardEvent) {
+      if (e.key === "Escape") setMobileMenuOpen(false);
+    }
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [mobileMenuOpen]);
+
   return (
     <div className="flex min-h-screen flex-1 flex-col bg-[#030712] text-slate-100 overflow-x-hidden w-full">
       {/* Top Navbar */}
       <header className="mx-auto w-full max-w-5xl border-b border-slate-800/80 px-4 pt-3 pb-3 sm:px-6 sm:pt-5 sm:pb-4">
-        {/* Top Row: Brand Lockup + Compact Network Toggle + Desktop Dashboard */}
+        {/* Top Bar: Brand Lockup + Desktop Controls / Mobile Hamburger */}
         <div className="flex items-center justify-between gap-3">
           <BrandLockup href="/" subtitle="Shielded Escrow" />
 
-          <div className="flex shrink-0 items-center gap-2 sm:gap-3">
-            {/* Testnet vs Mainnet Switcher (Compact single-line on mobile, full label on desktop) */}
+          {/* Desktop Controls (sm: and up) */}
+          <div className="hidden sm:flex shrink-0 items-center gap-3">
+            {/* Testnet vs Mainnet Switcher */}
             <div className="flex shrink-0 rounded-full border border-slate-800 bg-[#0F172A] p-1 text-xs font-semibold shadow-inner">
               <button
                 type="button"
                 onClick={() => handleToggleNetwork("testnet")}
-                className={`rounded-full px-2.5 py-1 text-xs transition ${
+                className={`rounded-full px-3 py-1 text-xs transition ${
                   network === "testnet"
                     ? "bg-amber-500 text-[#030712] font-bold shadow"
                     : "text-slate-400 hover:text-slate-200"
                 }`}
                 title="Switch to Zcash Testnet (TAZ)"
               >
-                <span>TAZ</span>
-                <span className="hidden sm:inline">&nbsp;Testnet</span>
+                TAZ Testnet
               </button>
               <button
                 type="button"
                 onClick={() => handleToggleNetwork("mainnet")}
-                className={`rounded-full px-2.5 py-1 text-xs transition ${
+                className={`rounded-full px-3 py-1 text-xs transition ${
                   network === "mainnet"
                     ? "bg-amber-500 text-[#030712] font-bold shadow"
                     : "text-slate-400 hover:text-slate-200"
                 }`}
                 title="Switch to Zcash Mainnet (ZEC)"
               >
-                <span>ZEC</span>
-                <span className="hidden sm:inline">&nbsp;Mainnet</span>
+                ZEC Mainnet
               </button>
             </div>
 
@@ -97,32 +119,104 @@ export default function Home() {
             <button
               type="button"
               onClick={() => setSellerDashOpen(true)}
-              className="hidden sm:inline-flex min-h-[40px] items-center gap-1.5 rounded-xl border border-slate-700/80 bg-slate-900/90 px-3.5 py-2 text-xs font-semibold text-slate-200 transition hover:bg-slate-800 hover:text-white shrink-0"
+              className="inline-flex min-h-[40px] items-center gap-1.5 rounded-xl border border-slate-700/80 bg-slate-900/90 px-3.5 py-2 text-xs font-semibold text-slate-200 transition hover:bg-slate-800 hover:text-white shrink-0"
             >
               <LayoutDashboard className="h-4 w-4 text-amber-500" />
               <span>Seller Dashboard</span>
             </button>
           </div>
-        </div>
 
-        {/* Mobile Action Bar (< 640px / sm:): Dashboard + Recent Deals */}
-        <div className="mt-2.5 flex items-center gap-2 sm:hidden w-full">
+          {/* Mobile Hamburger Button (< 640px / sm:) */}
           <button
             type="button"
-            onClick={() => setSellerDashOpen(true)}
-            className="flex flex-1 min-h-[38px] items-center justify-center gap-1.5 rounded-xl border border-slate-700/80 bg-slate-900/90 px-3 py-1.5 text-xs font-semibold text-slate-200 transition hover:bg-slate-800 hover:text-white"
+            onClick={() => setMobileMenuOpen((open) => !open)}
+            aria-expanded={mobileMenuOpen}
+            aria-label="Toggle navigation menu"
+            className="flex sm:hidden min-h-[44px] min-w-[44px] items-center justify-center rounded-xl border border-slate-800 bg-[#0F172A] p-2 text-slate-300 transition-colors hover:bg-slate-800 hover:text-white active:scale-95 shrink-0"
           >
-            <LayoutDashboard className="h-3.5 w-3.5 text-amber-500" />
-            <span>Seller Dashboard</span>
+            {mobileMenuOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
           </button>
-          <a
-            href="#recent-deals-heading"
-            className="flex flex-1 min-h-[38px] items-center justify-center gap-1.5 rounded-xl border border-slate-800 bg-[#0F172A] px-3 py-1.5 text-xs font-semibold text-slate-300 transition hover:bg-slate-800 hover:text-white"
-          >
-            <Coins className="h-3.5 w-3.5 text-amber-500" />
-            <span>Recent Deals</span>
-          </a>
         </div>
+
+        {/* Collapsible Mobile Menu Drawer/Panel (< 640px / sm:) */}
+        {mobileMenuOpen && (
+          <div className="mt-3 block sm:hidden rounded-2xl border border-slate-800/90 bg-[#0F172A]/95 p-4 shadow-2xl backdrop-blur-md transition-all">
+            <div className="space-y-4">
+              {/* Network Selector in Drawer */}
+              <div>
+                <span className="block mb-2 text-xs font-semibold uppercase tracking-wider text-slate-400">
+                  Zcash Network Environment
+                </span>
+                <div className="grid grid-cols-2 gap-2 rounded-xl border border-slate-800 bg-[#030712] p-1.5">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      handleToggleNetwork("testnet");
+                      setMobileMenuOpen(false);
+                    }}
+                    className={`flex min-h-[44px] items-center justify-center gap-1.5 rounded-lg text-xs font-semibold transition ${
+                      network === "testnet"
+                        ? "bg-amber-500 text-slate-950 font-bold shadow-sm"
+                        : "text-slate-400 hover:text-white"
+                    }`}
+                  >
+                    TAZ Testnet
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      handleToggleNetwork("mainnet");
+                      setMobileMenuOpen(false);
+                    }}
+                    className={`flex min-h-[44px] items-center justify-center gap-1.5 rounded-lg text-xs font-semibold transition ${
+                      network === "mainnet"
+                        ? "bg-amber-500 text-slate-950 font-bold shadow-sm"
+                        : "text-slate-400 hover:text-white"
+                    }`}
+                  >
+                    ZEC Mainnet
+                  </button>
+                </div>
+              </div>
+
+              {/* Navigation Items in Drawer */}
+              <div className="space-y-2 pt-2 border-t border-slate-800/80">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setSellerDashOpen(true);
+                    setMobileMenuOpen(false);
+                  }}
+                  className="flex w-full min-h-[44px] items-center gap-3 rounded-xl border border-slate-700/80 bg-slate-900/90 px-4 py-3 text-xs font-semibold text-slate-200 transition hover:bg-slate-800 hover:text-white"
+                >
+                  <LayoutDashboard className="h-4 w-4 text-amber-500" />
+                  <span>Seller Dashboard &amp; Ledger</span>
+                </button>
+
+                <a
+                  href="#recent-deals-heading"
+                  onClick={() => setMobileMenuOpen(false)}
+                  className="flex w-full min-h-[44px] items-center gap-3 rounded-xl border border-slate-800 bg-[#030712] px-4 py-3 text-xs font-semibold text-slate-300 transition hover:bg-slate-800 hover:text-white"
+                >
+                  <Coins className="h-4 w-4 text-amber-500" />
+                  <span>Recent Escrow Deals</span>
+                </a>
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    setModalOpen(true);
+                    setMobileMenuOpen(false);
+                  }}
+                  className="flex w-full min-h-[44px] items-center justify-center gap-2 rounded-xl bg-amber-500 px-4 py-3 text-xs font-semibold text-slate-950 shadow-md transition hover:bg-amber-400"
+                >
+                  Create Escrow Link
+                  <ArrowRight className="h-4 w-4" />
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
       </header>
 
       {/* Main Content Area */}
