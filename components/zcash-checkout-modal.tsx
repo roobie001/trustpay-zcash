@@ -324,13 +324,13 @@ export function ZcashCheckoutModal({
               value={manualTxid}
               onChange={(event) => setManualTxid(event.target.value)}
               className={`${inputClass} font-mono text-xs sm:text-sm`}
-              placeholder="Transaction ID (64 hex characters)"
+              placeholder="64-character txid (hex)"
             />
             <input
               value={manualBuyerAddress}
               onChange={(event) => setManualBuyerAddress(event.target.value)}
               className={`${inputClass} font-mono text-xs sm:text-sm`}
-              placeholder="Sender address (utest1...)"
+              placeholder="Sender utest1... address"
             />
             <button
               type="button"

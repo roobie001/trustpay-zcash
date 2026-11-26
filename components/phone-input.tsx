@@ -36,7 +36,7 @@ export function PhoneInput({
             aria-label="Country dial code"
             value={dialCode}
             onChange={(e) => onDialCodeChange(e.target.value)}
-            className={`${inputClass} w-[7rem] cursor-pointer appearance-none pr-8 tabular-nums font-mono text-xs sm:text-sm bg-[#030712]`}
+            className={`${inputClass} w-[6.5rem] sm:w-[7rem] cursor-pointer appearance-none px-2.5 pr-7 tabular-nums font-mono text-xs sm:text-sm bg-[#030712]`}
           >
             {DIAL_CODES.map((c) => (
               <option key={c.iso} value={c.dial} title={c.name} className="bg-[#0F172A] text-slate-100">
@@ -44,7 +44,7 @@ export function PhoneInput({
               </option>
             ))}
           </select>
-          <ChevronDown className="pointer-events-none absolute inset-y-0 right-2.5 my-auto h-4 w-4 text-slate-400" />
+          <ChevronDown className="pointer-events-none absolute inset-y-0 right-2 my-auto h-4 w-4 text-slate-400" />
         </div>
         <input
           id={id}

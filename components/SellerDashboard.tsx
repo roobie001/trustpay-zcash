@@ -198,12 +198,12 @@ export function SellerDashboard({ open, onClose, initialLookup }: SellerDashboar
             }}
             className="flex gap-2"
           >
-            <div className="relative flex-1">
+            <div className="relative flex-1 min-w-0">
               <Search className="pointer-events-none absolute inset-y-0 left-3 my-auto h-4 w-4 text-slate-400" />
               <input
                 value={lookupValue}
                 onChange={(e) => setLookupValue(e.target.value)}
-                placeholder="Lookup by WhatsApp Phone Number or Zcash Address..."
+                placeholder="Phone or Zcash address"
                 className={`${inputClass} font-mono text-xs sm:text-sm pl-10 h-11 rounded-xl`}
               />
             </div>
@@ -329,11 +329,10 @@ export function SellerDashboard({ open, onClose, initialLookup }: SellerDashboar
                           )}
                           {isReleased && (
                             <span
-                              className={`rounded-full border px-2.5 py-0.5 text-xs ${
-                                payoutStatus === "SETTLED"
-                                  ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-300"
-                                  : "border-amber-500/30 bg-amber-500/10 text-amber-300"
-                              }`}
+                              className={`rounded-full border px-2.5 py-0.5 text-xs ${payoutStatus === "SETTLED"
+                                ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-300"
+                                : "border-amber-500/30 bg-amber-500/10 text-amber-300"
+                                }`}
                             >
                               {payoutStatus === "SETTLED" ? "Settled" : "Processing Payout"}
                             </span>

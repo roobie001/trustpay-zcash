@@ -424,7 +424,7 @@ export function CreateEscrowModal({ open, onClose }: Props) {
                   id="item-title"
                   value={itemTitle}
                   onChange={(e) => setItemTitle(e.target.value)}
-                  placeholder="e.g. Nike Dunk Low Retro (Size 43)"
+                  placeholder="e.g. Nike Dunk Low Retro"
                   className={inputClass}
                 />
               </div>
@@ -465,8 +465,8 @@ export function CreateEscrowModal({ open, onClose }: Props) {
                 </div>
               </div>
 
-              {/* Item Condition & Description */}
-              <div className="grid gap-3 sm:grid-cols-2">
+              {/* Item Condition & Delivery SLA (Cleanly stacked with full width to prevent clipping) */}
+              <div className="space-y-4">
                 <div>
                   <label htmlFor="condition" className={labelClass}>
                     Item Condition <span className="font-normal text-slate-500">(optional)</span>
@@ -475,7 +475,7 @@ export function CreateEscrowModal({ open, onClose }: Props) {
                     id="condition"
                     value={itemCondition}
                     onChange={(e) => setItemCondition(e.target.value)}
-                    placeholder="e.g. Brand New, Open Box"
+                    placeholder="e.g. Brand New, Pristine"
                     className={inputClass}
                   />
                 </div>
@@ -487,7 +487,7 @@ export function CreateEscrowModal({ open, onClose }: Props) {
                     id="delivery-notes"
                     value={deliveryNotes}
                     onChange={(e) => setDeliveryNotes(e.target.value)}
-                    placeholder="Same-day dispatch via Gokada"
+                    placeholder="e.g. Same-day delivery via rider"
                     className={inputClass}
                   />
                 </div>
@@ -512,7 +512,7 @@ export function CreateEscrowModal({ open, onClose }: Props) {
                   value={orderAddress}
                   onChange={(e) => setOrderAddress(e.target.value)}
                   className={`${inputClass} font-mono text-xs`}
-                  placeholder="u1... or zs1... or utest1..."
+                  placeholder="u1... or utest1... address"
                 />
               )}
 
@@ -526,7 +526,7 @@ export function CreateEscrowModal({ open, onClose }: Props) {
                     <strong className="font-mono text-lg font-bold tabular-nums text-amber-500">
                       {formatZec(calculatedTotal)}
                     </strong>
-                    <p className="text-[11px] text-slate-400">
+                    <p className="text-xs text-slate-400 tabular-nums">
                       {formatZecEquivalents(calculatedTotal, rates).summary}
                     </p>
                   </div>
@@ -554,7 +554,7 @@ export function CreateEscrowModal({ open, onClose }: Props) {
                 id="store-name"
                 value={storeName}
                 onChange={(e) => setStoreName(e.target.value)}
-                placeholder="Roobie Kicks"
+                placeholder="e.g. Roobie Kicks"
                 className={inputClass}
               />
             </div>
@@ -589,7 +589,7 @@ export function CreateEscrowModal({ open, onClose }: Props) {
                 id="payout-address"
                 value={payoutAddress}
                 onChange={(e) => setPayoutAddress(e.target.value)}
-                placeholder="u1..., zs1..., t1..., utest1..., or tm..."
+                placeholder="u1... or utest1... address"
                 className={`${inputClass} font-mono text-xs`}
               />
               {payoutAddress && (

@@ -740,7 +740,7 @@ export default function OrderPage({ params }: { params: Promise<{ id: string }> 
                 <input
                   value={manualTxid}
                   onChange={(e) => setManualTxid(e.target.value)}
-                  placeholder="64-character transaction ID (hex)"
+                  placeholder="64-character txid (hex)"
                   className={`${inputClass} font-mono text-xs`}
                 />
                 {manualError && <p role="alert" className="text-xs text-red-300">{manualError}</p>}
@@ -887,7 +887,7 @@ export default function OrderPage({ params }: { params: Promise<{ id: string }> 
                 <input
                   value={riderPhone}
                   onChange={(e) => setRiderPhone(e.target.value)}
-                  placeholder="e.g. +2348023456789 or 08012345678"
+                  placeholder="e.g. +2348012345678"
                   className={inputClass}
                 />
               </div>

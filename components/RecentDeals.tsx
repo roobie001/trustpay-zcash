@@ -258,7 +258,7 @@ export function RecentDeals({ onOpenSellerDashboard }: RecentDealsProps) {
               <input
                 value={syncQuery}
                 onChange={(e) => setSyncQuery(e.target.value)}
-                placeholder="Phone (e.g. +2348012345678) or Zcash address"
+                placeholder="Phone or Zcash address (e.g. +234...)"
                 className={`${inputClass} font-mono text-xs sm:text-sm`}
               />
 

@@ -352,7 +352,7 @@ export default function PayPage({ params }: { params: Promise<{ id: string }> })
               id="doorstep-address"
               value={doorstepAddress}
               onChange={(e) => setDoorstepAddress(e.target.value)}
-              placeholder="House/Apt No., Street, City, State"
+              placeholder="Street address, City, State"
               className={inputClass}
             />
           </div>
@@ -365,7 +365,7 @@ export default function PayPage({ params }: { params: Promise<{ id: string }> })
               id="landmark"
               value={landmark}
               onChange={(e) => setLandmark(e.target.value)}
-              placeholder="Opposite Zenith Bank / Beside City Mall"
+              placeholder="e.g. Beside City Mall, Landmark"
               className={inputClass}
             />
           </div>
