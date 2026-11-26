@@ -340,7 +340,7 @@ export default function OrderPage({ params }: { params: Promise<{ id: string }> 
 
   if (!order) {
     return (
-      <PageShell>
+      <PageShell role="tracker">
         <PageMessage icon={<Loader2 className="h-7 w-7 animate-spin text-amber-500" />}>
           Loading order details…
         </PageMessage>
@@ -373,7 +373,7 @@ export default function OrderPage({ params }: { params: Promise<{ id: string }> 
   const buyerCleanPhone = (order.buyer_phone || "").replace(/\D/g, "");
 
   return (
-    <PageShell>
+    <PageShell role="tracker">
       {/* Top Bar: View Role Switcher & Tracking Link */}
       <div className="mb-5 flex flex-wrap items-center justify-between gap-3 border-b border-slate-800/80 pb-4">
         {/* Buyer View vs Seller View Switcher */}
@@ -445,7 +445,7 @@ export default function OrderPage({ params }: { params: Promise<{ id: string }> 
           <span>·</span>
           <span>Sold by <strong className="text-slate-200 font-semibold">{order.seller_name}</strong></span>
         </div>
-        <p className="text-xs font-medium text-slate-400 mt-1">
+        <p className="text-xs font-medium text-slate-400 mt-1 tabular-nums">
           {formatZecEquivalents(total, rates).summary}
         </p>
       </div>

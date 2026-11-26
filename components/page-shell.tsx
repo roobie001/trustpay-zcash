@@ -5,9 +5,18 @@ import Link from "next/link";
 import { ArrowRight, Coins, Menu, PlusCircle, ShieldCheck, X } from "lucide-react";
 import { BrandLockup } from "@/components/BrandLogo";
 
+interface PageShellProps {
+  children: ReactNode;
+  /** Role context: 'buyer' checkout hides seller link-creation controls */
+  role?: "buyer" | "tracker" | "general";
+  /** Optional custom right-side badge or action (e.g. network indicator) */
+  rightSlot?: ReactNode;
+}
+
 /** Brand header shared by the buyer checkout and order tracker pages. */
-export function PageShell({ children }: { children: ReactNode }) {
+export function PageShell({ children, role = "general", rightSlot }: PageShellProps) {
   const [menuOpen, setMenuOpen] = useState(false);
+  const isBuyer = role === "buyer";
 
   // Close mobile drawer when resizing to desktop
   useEffect(() => {
@@ -32,42 +41,57 @@ export function PageShell({ children }: { children: ReactNode }) {
   return (
     <div className="flex min-h-screen flex-1 flex-col bg-[#030712] text-slate-100 overflow-x-hidden w-full">
       <header className="mx-auto w-full max-w-5xl border-b border-slate-800/80 px-4 pt-3 pb-3 sm:px-6 sm:pt-5 sm:pb-4">
-        {/* Top Bar: Brand Lockup on Left, Desktop Links / Mobile Hamburger on Right */}
+        {/* Top Bar: Brand Lockup on Left, Contextual Right Slot / Controls */}
         <div className="flex items-center justify-between gap-3">
           <BrandLockup href="/" subtitle="Shielded Escrow" />
 
-          {/* Desktop Navigation Links (sm: and up) */}
-          <div className="hidden sm:flex shrink-0 items-center gap-2.5">
-            <Link
-              href="/"
-              className="inline-flex min-h-[38px] items-center gap-1.5 rounded-xl border border-slate-800 bg-[#0F172A] px-3.5 py-1.5 text-xs font-semibold text-slate-300 transition hover:bg-slate-800 hover:text-white"
-            >
-              <PlusCircle className="h-3.5 w-3.5 text-amber-500" />
-              <span>Create Escrow</span>
-            </Link>
-            <Link
-              href="/#recent-deals-heading"
-              className="inline-flex min-h-[38px] items-center gap-1.5 rounded-xl border border-slate-800 bg-[#0F172A] px-3.5 py-1.5 text-xs font-semibold text-slate-300 transition hover:bg-slate-800 hover:text-white"
-            >
-              <Coins className="h-3.5 w-3.5 text-amber-500" />
-              <span>Recent Deals</span>
-            </Link>
-          </div>
+          {/* If buyer checkout view: strictly buyer-only controls (no vendor creation clutter) */}
+          {isBuyer ? (
+            <div className="flex shrink-0 items-center gap-2">
+              {rightSlot ?? (
+                <span className="inline-flex items-center gap-1.5 rounded-full border border-emerald-500/30 bg-emerald-500/10 px-2.5 sm:px-3 py-1 text-xs font-semibold text-emerald-400">
+                  <ShieldCheck className="h-3.5 w-3.5 shrink-0" />
+                  <span>Shielded Vault</span>
+                </span>
+              )}
+            </div>
+          ) : (
+            <>
+              {/* General / Tracker view: Desktop Navigation Links (sm: and up) */}
+              <div className="hidden sm:flex shrink-0 items-center gap-2.5">
+                {rightSlot}
+                <Link
+                  href="/"
+                  className="inline-flex min-h-[38px] items-center gap-1.5 rounded-xl border border-slate-800 bg-[#0F172A] px-3.5 py-1.5 text-xs font-semibold text-slate-300 transition hover:bg-slate-800 hover:text-white"
+                >
+                  <PlusCircle className="h-3.5 w-3.5 text-amber-500" />
+                  <span>Create Escrow</span>
+                </Link>
+                <Link
+                  href="/#recent-deals-heading"
+                  className="inline-flex min-h-[38px] items-center gap-1.5 rounded-xl border border-slate-800 bg-[#0F172A] px-3.5 py-1.5 text-xs font-semibold text-slate-300 transition hover:bg-slate-800 hover:text-white"
+                >
+                  <Coins className="h-3.5 w-3.5 text-amber-500" />
+                  <span>Recent Deals</span>
+                </Link>
+              </div>
 
-          {/* Mobile Hamburger Button (< 640px / sm:) */}
-          <button
-            type="button"
-            onClick={() => setMenuOpen((open) => !open)}
-            aria-expanded={menuOpen}
-            aria-label="Toggle navigation menu"
-            className="flex sm:hidden min-h-[44px] min-w-[44px] items-center justify-center rounded-xl border border-slate-800 bg-[#0F172A] p-2 text-slate-300 transition-colors hover:bg-slate-800 hover:text-white active:scale-95 shrink-0"
-          >
-            {menuOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
-          </button>
+              {/* Mobile Hamburger Button (< 640px / sm:) */}
+              <button
+                type="button"
+                onClick={() => setMenuOpen((open) => !open)}
+                aria-expanded={menuOpen}
+                aria-label="Toggle navigation menu"
+                className="flex sm:hidden min-h-[44px] min-w-[44px] items-center justify-center rounded-xl border border-slate-800 bg-[#0F172A] p-2 text-slate-300 transition-colors hover:bg-slate-800 hover:text-white active:scale-95 shrink-0"
+              >
+                {menuOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
+              </button>
+            </>
+          )}
         </div>
 
-        {/* Collapsible Mobile Menu Drawer (< 640px / sm:) */}
-        {menuOpen && (
+        {/* Collapsible Mobile Menu Drawer (only for general/tracker, never for buyer) */}
+        {!isBuyer && menuOpen && (
           <div className="mt-3 block sm:hidden rounded-2xl border border-slate-800/90 bg-[#0F172A]/95 p-4 shadow-2xl backdrop-blur-md transition-all">
             <div className="space-y-2.5">
               <span className="block mb-1 text-xs font-semibold uppercase tracking-wider text-slate-400">

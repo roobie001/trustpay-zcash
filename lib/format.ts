@@ -104,7 +104,7 @@ export function formatZecEquivalents(zecAmount: number, rates?: { usd: number; n
     return {
       usd: "$0.00",
       ngn: "₦0",
-      summary: "≈ $0.00 USD / ₦0 NGN",
+      summary: "$0.00 USD / ₦0 NGN",
     };
   }
 
@@ -112,9 +112,11 @@ export function formatZecEquivalents(zecAmount: number, rates?: { usd: number; n
   const usdVal = zecAmount * currentRates.usd;
   const ngnVal = zecAmount * currentRates.ngn;
 
-  // Format USD accurately for tiny amounts
+  // Format USD accurately for tiny amounts without double approximation symbols
   let usd: string;
+  let isUnderCent = false;
   if (usdVal < 0.01) {
+    isUnderCent = true;
     usd = "< $0.01";
   } else {
     usd = `$${usdVal.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
@@ -130,7 +132,10 @@ export function formatZecEquivalents(zecAmount: number, rates?: { usd: number; n
     ngn = `₦${Math.round(ngnVal).toLocaleString("en-US")}`;
   }
 
-  const summary = `≈ ${usd} USD / ${ngn} NGN`;
+  // Clean summary: never combine double approximation/comparison symbols like "≈ < $0.01"
+  const summary = isUnderCent
+    ? `< $0.01 USD / ~ ${ngn} NGN`
+    : `~ ${usd} USD / ~ ${ngn} NGN`;
 
   return { usd, ngn, summary };
 }

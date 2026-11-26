@@ -27,6 +27,7 @@ import {
   saveRecentDeal,
 } from "@/lib/storage";
 import { cardClass, inputClass, labelClass, primaryButtonClass, secondaryButtonClass } from "@/lib/ui";
+import { TrustPayLogo } from "@/components/BrandLogo";
 import { PageMessage, PageShell } from "@/components/page-shell";
 import { PhoneInput } from "@/components/phone-input";
 import { ZcashCheckoutModal } from "@/components/zcash-checkout-modal";
@@ -205,7 +206,7 @@ export default function PayPage({ params }: { params: Promise<{ id: string }> })
 
   if (loading) {
     return (
-      <PageShell>
+      <PageShell role="buyer">
         <PageMessage icon={<Loader2 className="h-7 w-7 animate-spin text-amber-500" />}>
           Loading escrow details…
         </PageMessage>
@@ -215,7 +216,7 @@ export default function PayPage({ params }: { params: Promise<{ id: string }> })
 
   if (notFound || !order) {
     return (
-      <PageShell>
+      <PageShell role="buyer">
         <PageMessage icon={<PackageSearch className="h-9 w-9 text-slate-500" />}>
           This escrow link doesn&apos;t exist or was removed.
         </PageMessage>
@@ -223,17 +224,31 @@ export default function PayPage({ params }: { params: Promise<{ id: string }> })
     );
   }
 
+  const isTestnet =
+    order.escrow_vault_address.startsWith("utest1") ||
+    order.escrow_vault_address.startsWith("tm");
   const total = Number(order.amount) + Number(order.delivery_fee);
   const displayedTxid = txid ?? (order.status === "HELD_IN_ESCROW" ? order.fund_txid : null);
   const isPaid = order.status !== "PENDING_PAYMENT";
 
+  const buyerHeaderSlot = (
+    <div className="flex shrink-0 items-center gap-2">
+      <span className="inline-flex items-center gap-1.5 rounded-full border border-emerald-500/30 bg-emerald-500/10 px-2.5 sm:px-3 py-1 text-xs font-semibold text-emerald-400">
+        <ShieldCheck className="h-3.5 w-3.5 shrink-0" />
+        <span className="hidden sm:inline">Protected Checkout</span>
+        <span className="sm:hidden">Protected</span>
+      </span>
+      <span className="rounded-full border border-slate-800 bg-[#0F172A] px-2.5 py-1 text-xs font-semibold text-amber-400">
+        {isTestnet ? "TAZ Testnet" : "ZEC Mainnet"}
+      </span>
+    </div>
+  );
+
   return (
-    <PageShell>
-      {/* Order Header */}
+    <PageShell role="buyer" rightSlot={buyerHeaderSlot}>
+      {/* Order Header with Bespoke Brand Emblem */}
       <div className="mb-6 text-center">
-        <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-2xl border border-slate-800 bg-[#0F172A] text-amber-500 shadow-lg shadow-black/20">
-          <ShieldCheck className="h-6 w-6" />
-        </div>
+        <TrustPayLogo className="mx-auto mb-3.5 h-12 w-12 sm:h-14 sm:w-14" />
         <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-white leading-tight">
           {order.item_title}
         </h1>
