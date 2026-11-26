@@ -1,55 +1,179 @@
 "use client";
 
 import { useState, type ReactNode } from "react";
-import { ArrowRight, Coins, LockKeyhole, ShieldCheck, Truck, Zap } from "lucide-react";
-import { BRAND_NAME, VAULT_NAME } from "@/lib/constants";
+import {
+  ArrowRight,
+  Coins,
+  LayoutDashboard,
+  LockKeyhole,
+  ShieldCheck,
+  Truck,
+  Zap,
+} from "lucide-react";
+import { VAULT_NAME } from "@/lib/constants";
+import { BrandLockup } from "@/components/BrandLogo";
 import { CreateEscrowModal } from "@/components/create-escrow-modal";
+import { RecentDeals } from "@/components/RecentDeals";
+import { SellerDashboard } from "@/components/SellerDashboard";
+import { getZcashNetwork, setZcashNetwork, type ZcashNetwork } from "@/lib/storage";
 
 const steps = [
-  { icon: LockKeyhole, title: "Lock & Share", text: "Buyer locks ZEC in the shielded vault and gets a clear order record." },
-  { icon: Truck, title: "Ship Item", text: "Seller fulfills the order while funds remain protected in escrow." },
-  { icon: ShieldCheck, title: "Verify & Payout", text: "Buyer confirms delivery; funds release privately to the vendor." },
+  {
+    icon: LockKeyhole,
+    title: "Lock & Share",
+    text: "Buyer locks ZEC in the shielded vault and receives an encrypted order record.",
+  },
+  {
+    icon: Truck,
+    title: "Ship with Rider",
+    text: "Seller fulfills and tracks dispatch while funds remain neutral in escrow.",
+  },
+  {
+    icon: ShieldCheck,
+    title: "Verify & Settle",
+    text: "Buyer verifies package and confirms PIN; funds release privately to vendor.",
+  },
 ];
 
 function Badge({ icon, children }: { icon: ReactNode; children: ReactNode }) {
-  return <span className="inline-flex items-center gap-2 rounded-full border border-border-subtle px-3 py-1.5 text-xs font-medium text-muted-text">{icon}{children}</span>;
+  return (
+    <span className="inline-flex items-center gap-2 rounded-full border border-slate-800/90 bg-slate-900/70 px-4 py-2 text-xs font-medium text-slate-300 shadow-sm">
+      {icon}
+      {children}
+    </span>
+  );
 }
 
 export default function Home() {
   const [modalOpen, setModalOpen] = useState(false);
+  const [sellerDashOpen, setSellerDashOpen] = useState(false);
+  const [network, setNetwork] = useState<ZcashNetwork>(() => getZcashNetwork());
+
+  function handleToggleNetwork(net: ZcashNetwork) {
+    setNetwork(net);
+    setZcashNetwork(net);
+  }
+
   return (
-    <div className="flex flex-1 flex-col">
-      <header className="mx-auto mt-4 flex w-[calc(100%-2rem)] max-w-3xl items-center border-b border-border-subtle px-1 pb-4 sm:mt-6">
-        <div className="flex items-center gap-3">
-          <span className="flex h-8 w-8 items-center justify-center rounded-lg border border-border-subtle text-brand"><ShieldCheck className="h-4 w-4" /></span>
-          <span className="font-semibold tracking-tight text-primary-text">{BRAND_NAME}</span>
-          <span className="hidden rounded-full border border-border-subtle px-2.5 py-1 text-[11px] font-medium text-muted-text sm:inline-flex">Shielded Escrow</span>
+    <div className="flex min-h-screen flex-1 flex-col bg-[#030712] text-slate-100">
+      {/* Top Navbar */}
+      <header className="mx-auto mt-3 flex w-[calc(100%-2rem)] max-w-5xl items-center justify-between border-b border-slate-800/80 px-2 pb-4 sm:mt-5">
+        <BrandLockup href="/" subtitle="Shielded Escrow" />
+
+        <div className="flex items-center gap-2 sm:gap-3">
+          {/* Testnet vs Mainnet Switcher */}
+          <div className="flex rounded-full border border-slate-800 bg-[#0F172A] p-1 text-xs font-semibold shadow-inner">
+            <button
+              type="button"
+              onClick={() => handleToggleNetwork("testnet")}
+              className={`rounded-full px-2.5 py-1 text-xs transition ${
+                network === "testnet"
+                  ? "bg-amber-500 text-[#030712] font-bold shadow"
+                  : "text-slate-400 hover:text-slate-200"
+              }`}
+            >
+              TAZ Testnet
+            </button>
+            <button
+              type="button"
+              onClick={() => handleToggleNetwork("mainnet")}
+              className={`rounded-full px-2.5 py-1 text-xs transition ${
+                network === "mainnet"
+                  ? "bg-amber-500 text-[#030712] font-bold shadow"
+                  : "text-slate-400 hover:text-slate-200"
+              }`}
+            >
+              ZEC Mainnet
+            </button>
+          </div>
+
+          <button
+            type="button"
+            onClick={() => setSellerDashOpen(true)}
+            className="inline-flex min-h-[40px] items-center gap-1.5 rounded-xl border border-slate-700/80 bg-slate-900/90 px-3.5 py-2 text-xs font-semibold text-slate-200 transition hover:bg-slate-800 hover:text-white"
+          >
+            <LayoutDashboard className="h-4 w-4 text-amber-500" />
+            <span className="hidden sm:inline">Seller</span> Dashboard
+          </button>
         </div>
       </header>
 
-      <main className="relative mx-auto flex w-full max-w-5xl flex-1 flex-col px-4 pb-14 sm:px-6">
-        <section className="mx-auto flex max-w-2xl flex-col items-center pb-16 pt-20 text-center sm:pb-24 sm:pt-28">
-          <p className="mb-5 text-xs font-semibold uppercase tracking-[0.2em] text-brand">Private escrow for social commerce</p>
-          <h1 className="max-w-2xl text-4xl font-semibold leading-tight tracking-tight text-primary-text sm:text-6xl">Trade with confidence. Keep your payment private.</h1>
-          <p className="mt-6 max-w-xl text-base leading-7 text-muted-text sm:text-lg">Create a focused Zcash escrow link for every sale. Funds stay protected until delivery is confirmed.</p>
-          <div className="mt-7 flex flex-wrap justify-center gap-2.5">
-            <Badge icon={<Zap className="h-4 w-4 text-brand"/>}>Shielded settlement</Badge>
-            <Badge icon={<ShieldCheck className="h-4 w-4 text-brand"/>}>Encrypted memos</Badge>
-            <Badge icon={<Coins className="h-4 w-4 text-brand"/>}>Private ZEC</Badge>
+      {/* Main Content Area */}
+      <main className="relative mx-auto flex w-full max-w-5xl flex-1 flex-col px-4 pb-20 sm:px-6">
+        {/* Hero Section */}
+        <section className="mx-auto flex max-w-3xl flex-col items-center pb-16 pt-16 text-center sm:pb-24 sm:pt-24">
+          <p className="mb-4 text-xs font-semibold uppercase tracking-[0.2em] text-amber-500">
+            Private Escrow for Social Commerce
+          </p>
+          <h1 className="text-3xl font-bold leading-[1.12] tracking-tight text-white sm:text-5xl md:text-6xl">
+            Trade with confidence. <br className="hidden sm:inline" />
+            Keep your payment private.
+          </h1>
+          <p className="mt-6 max-w-2xl text-base leading-relaxed text-slate-300 sm:text-lg">
+            Create a focused Zcash shielded escrow link for every sale. Balances, payments, and addresses
+            stay encrypted until delivery is confirmed.
+          </p>
+
+          <div className="mt-8 flex flex-wrap justify-center gap-3">
+            <Badge icon={<Zap className="h-4 w-4 text-amber-500" />}>Shielded Settlement</Badge>
+            <Badge icon={<ShieldCheck className="h-4 w-4 text-emerald-400" />}>Encrypted Memos</Badge>
+            <Badge icon={<Coins className="h-4 w-4 text-amber-500" />}>Private ZEC</Badge>
           </div>
-          <button type="button" onClick={() => setModalOpen(true)} className="group mt-9 inline-flex h-11 items-center justify-center gap-2 rounded-lg bg-brand px-6 text-sm font-semibold text-canvas transition hover:bg-brand-hover">Create Escrow Link<ArrowRight className="h-4 w-4 transition group-hover:translate-x-1"/></button>
-          <p className="mt-3 text-xs text-muted-text">No account required.</p>
+
+          <button
+            type="button"
+            onClick={() => setModalOpen(true)}
+            className="group mt-10 inline-flex min-h-[52px] items-center justify-center gap-2.5 rounded-xl bg-amber-500 px-8 text-base font-semibold text-[#030712] shadow-xl shadow-amber-500/10 transition hover:bg-amber-400 active:scale-[0.99]"
+          >
+            Create Escrow Link
+            <ArrowRight className="h-4 w-4 transition group-hover:translate-x-1" />
+          </button>
+          <p className="mt-3 text-xs text-slate-400">No account required. Instant seller profile setup.</p>
         </section>
 
-        <section aria-labelledby="how-it-works">
-          <div className="mb-5 flex items-center justify-between"><h2 id="how-it-works" className="text-xs font-semibold uppercase tracking-[0.18em] text-muted-text">A clear path from payment to payout</h2><span className="hidden text-xs text-muted-text sm:block">01 — 03</span></div>
-          <ol className="grid gap-3 sm:grid-cols-3 sm:gap-4">
-            {steps.map(({ icon: Icon, title, text }, index) => <li key={title} className="rounded-xl border border-border-subtle bg-surface p-5 sm:p-6"><div className="mb-5 flex items-center justify-between"><span className="flex h-9 w-9 items-center justify-center rounded-lg border border-border-subtle text-brand"><Icon className="h-4 w-4"/></span><span className="font-mono text-xs text-muted-text">0{index + 1}</span></div><h3 className="text-sm font-semibold text-primary-text">{title}</h3><p className="mt-2 text-sm leading-6 text-muted-text">{text}</p></li>)}
+        {/* How It Works Section */}
+        <section aria-labelledby="how-it-works" className="mt-4">
+          <div className="mb-6 flex items-center justify-between">
+            <h2
+              id="how-it-works"
+              className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-400"
+            >
+              A Clear Path from Payment to Payout
+            </h2>
+            <span className="hidden font-mono text-xs text-slate-500 sm:block">01 — 03</span>
+          </div>
+
+          <ol className="grid gap-4 sm:grid-cols-3 sm:gap-5">
+            {steps.map(({ icon: Icon, title, text }, index) => (
+              <li
+                key={title}
+                className="rounded-2xl border border-slate-800/80 bg-[#0F172A]/90 p-6 shadow-lg shadow-black/20 sm:p-7"
+              >
+                <div className="mb-5 flex items-center justify-between">
+                  <span className="flex h-10 w-10 items-center justify-center rounded-xl border border-slate-800 bg-[#030712] text-amber-500 shadow-sm">
+                    <Icon className="h-5 w-5" />
+                  </span>
+                  <span className="font-mono text-xs font-semibold text-amber-500">0{index + 1}</span>
+                </div>
+                <h3 className="text-base sm:text-lg font-semibold tracking-tight text-white">{title}</h3>
+                <p className="mt-2 text-sm leading-relaxed text-slate-300">{text}</p>
+              </li>
+            ))}
           </ol>
         </section>
-        <p className="mt-9 flex items-center justify-center gap-2 text-center text-xs text-muted-text"><ShieldCheck className="h-4 w-4 shrink-0 text-brand"/>Funds stay in the {VAULT_NAME} until delivery is confirmed.</p>
+
+        {/* Recent Deals & Cross-Device Sync Component */}
+        <RecentDeals onOpenSellerDashboard={() => setSellerDashOpen(true)} />
+
+        {/* Vault Guarantee Footer Note */}
+        <p className="mt-16 flex items-center justify-center gap-2 text-center text-xs text-slate-400">
+          <ShieldCheck className="h-4 w-4 shrink-0 text-emerald-400" />
+          Funds stay in the {VAULT_NAME} until doorstep delivery is confirmed.
+        </p>
       </main>
+
       <CreateEscrowModal open={modalOpen} onClose={() => setModalOpen(false)} />
+      <SellerDashboard open={sellerDashOpen} onClose={() => setSellerDashOpen(false)} />
     </div>
   );
 }

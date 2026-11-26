@@ -36,10 +36,10 @@ export function PhoneInput({
             aria-label="Country dial code"
             value={dialCode}
             onChange={(e) => onDialCodeChange(e.target.value)}
-            className={`${inputClass} w-[6.75rem] cursor-pointer appearance-none pr-8 tabular-nums`}
+            className={`${inputClass} w-[7rem] cursor-pointer appearance-none pr-8 tabular-nums font-mono text-xs sm:text-sm bg-[#030712]`}
           >
             {DIAL_CODES.map((c) => (
-              <option key={c.iso} value={c.dial} title={c.name}>
+              <option key={c.iso} value={c.dial} title={c.name} className="bg-[#0F172A] text-slate-100">
                 {c.iso} +{c.dial}
               </option>
             ))}
@@ -54,21 +54,21 @@ export function PhoneInput({
           value={value}
           onChange={(e) => onChange(e.target.value)}
           placeholder={dialCode === DEFAULT_DIAL_CODE.dial ? "801 234 5678" : "Phone number"}
-          className={`${inputClass} min-w-0 flex-1 tabular-nums`}
+          className={`${inputClass} min-w-0 flex-1 tabular-nums font-mono text-xs sm:text-sm`}
         />
       </div>
       {value.trim() && (
         <p
           className={`mt-1.5 text-xs ${
-            e164 ? "text-slate-500 dark:text-slate-400" : "text-red-600 dark:text-red-400"
+            e164 ? "text-slate-400 font-medium" : "text-red-400"
           }`}
         >
           {e164 ? (
             <>
-              Saved as <span className="font-mono">{e164}</span>
+              Verified E.164 format: <span className="font-mono text-amber-400">{e164}</span>
             </>
           ) : (
-            "That doesn't look like a valid number for this country code."
+            "Please enter a valid phone number for this country code."
           )}
         </p>
       )}

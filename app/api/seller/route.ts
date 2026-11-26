@@ -35,11 +35,8 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ success: false, error: "Store name and payout address are required." }, { status: 400 });
   }
   const payoutAddress = body.payout_address.trim();
-  if (payoutAddress.startsWith("t1") || payoutAddress.startsWith("t3")) {
-    return NextResponse.json({ success: false, error: "Transparent Zcash addresses are not supported. Use a shielded Unified or Sapling address." }, { status: 400 });
-  }
   if (!isZcashAddress(payoutAddress)) {
-    return NextResponse.json({ success: false, error: "Use a valid shielded Zcash Unified (u1...) or Sapling (zs1...) address." }, { status: 400 });
+    return NextResponse.json({ success: false, error: "Use a valid Zcash payout address (supporting u1..., zs1..., t1..., or testnet utest1... / tm...)." }, { status: 400 });
   }
   const token = isToken(body.seller_secret_token) ? body.seller_secret_token : randomBytes(32).toString("hex");
   try {

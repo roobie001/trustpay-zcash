@@ -11,33 +11,57 @@ function safeEqual(a: string, b: string): boolean {
   return timingSafeEqual(aBuf, bBuf);
 }
 
-// Checks a `?key=` query param against the order's seller secret key, which
-// lives in the RLS-locked escrow_order_secrets table (never exposed to
-// clients directly). Only ever returns a boolean — the key itself is never
-// echoed back, so this route is safe to call from the browser.
+// Checks `key` query param (order dashboard secret) or `token` query param (seller profile token).
 export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
   const { id } = await params;
   const key = request.nextUrl.searchParams.get("key");
+  const token = request.nextUrl.searchParams.get("token");
 
-  if (!key) {
+  if (!key && !token) {
     return NextResponse.json({ isSeller: false });
   }
 
   try {
-    const { data, error } = await getSupabaseAdmin()
-      .from("escrow_order_secrets")
-      .select("seller_secret_key")
-      .eq("order_id", id)
-      .maybeSingle();
+    const admin = getSupabaseAdmin();
 
-    if (error || !data) {
-      return NextResponse.json({ isSeller: false });
+    // Check order-specific seller key
+    if (key) {
+      const { data: secret } = await admin
+        .from("escrow_order_secrets")
+        .select("seller_secret_key")
+        .eq("order_id", id)
+        .maybeSingle();
+
+      if (secret && safeEqual(key, secret.seller_secret_key)) {
+        return NextResponse.json({ isSeller: true, method: "key" });
+      }
     }
 
-    return NextResponse.json({ isSeller: safeEqual(key, data.seller_secret_key) });
+    // Check persistent seller profile token
+    if (token) {
+      const { data: order } = await admin
+        .from("escrow_orders")
+        .select("seller_id")
+        .eq("id", id)
+        .maybeSingle();
+
+      if (order?.seller_id) {
+        const { data: seller } = await admin
+          .from("sellers")
+          .select("seller_secret_token")
+          .eq("id", order.seller_id)
+          .maybeSingle();
+
+        if (seller && safeEqual(token, seller.seller_secret_token)) {
+          return NextResponse.json({ isSeller: true, method: "token" });
+        }
+      }
+    }
+
+    return NextResponse.json({ isSeller: false });
   } catch (error) {
     console.error("[verify-seller] server error:", error);
     return NextResponse.json({ isSeller: false }, { status: 500 });

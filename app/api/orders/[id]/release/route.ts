@@ -24,6 +24,9 @@ export async function POST(
     if (order.status === "FUNDS_RELEASED") {
       return NextResponse.json({ success: true, status: "FUNDS_RELEASED", payoutTxid: order.release_txid ?? undefined });
     }
+    if (order.status === "DISPUTED") {
+      return NextResponse.json({ success: false, error: "Order is currently disputed and payouts are frozen." }, { status: 409 });
+    }
     if (order.status !== "DISPATCHED") {
       return NextResponse.json({ success: false, error: "Only dispatched orders can be released." }, { status: 409 });
     }

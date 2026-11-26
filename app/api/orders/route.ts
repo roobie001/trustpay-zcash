@@ -108,7 +108,7 @@ export async function POST(request: NextRequest) {
       ? vendor_address.trim()
       : seller.payout_address;
     if (!isZcashAddress(payoutAddress)) {
-      return NextResponse.json({ success: false, error: "The payout address must be shielded Zcash." }, { status: 400 });
+      return NextResponse.json({ success: false, error: "The payout address must be a valid Zcash address." }, { status: 400 });
     }
 
     const { data: order, error: insertError } = await admin

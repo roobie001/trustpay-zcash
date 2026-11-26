@@ -1,15 +1,15 @@
-@import url("https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap");
+@import url("https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap");
 @import "tailwindcss";
 
 :root {
   color-scheme: dark;
-  --background: #0a0b0d;
-  --foreground: #f4f5f7;
-  --surface: #121418;
-  --border-subtle: #1f232b;
-  --muted: #8a93a2;
-  --brand: #f4b728;
-  --brand-hover: #e0a419;
+  --background: #030712;
+  --foreground: #f8fafc;
+  --surface: #0f172a;
+  --border-subtle: #1e293b;
+  --muted: #94a3b8;
+  --brand: #eab308;
+  --brand-hover: #ca8a04;
   --font-sans: "Plus Jakarta Sans", ui-sans-serif, system-ui, sans-serif;
   --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
 }
@@ -33,10 +33,19 @@
   }
 }
 
-html, body { min-height: 100%; }
+html, body {
+  min-height: 100%;
+  overflow-x: hidden;
+}
+
 body {
   background: var(--background);
   color: var(--foreground);
   font-family: var(--font-sans), sans-serif;
+  -webkit-font-smoothing: antialiased;
 }
-::selection { color: var(--background); background: var(--brand); }
+
+::selection {
+  color: #030712;
+  background: var(--brand);
+}

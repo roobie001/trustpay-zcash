@@ -42,13 +42,13 @@ declare global {
 export function isZcashAddress(value: string): boolean {
   if (typeof value !== "string") return false;
   const address = value.trim();
-  return /^(?:u1|utest1|zs1|ztestsapling1)[a-z0-9]{20,}$/i.test(address);
+  return /^(?:u1|utest1|zs1|ztestsapling1|t1|t3|tm)[a-z0-9]{20,}$/i.test(address);
 }
 
 export function isTestnetZcashAddress(value: string): boolean {
   if (typeof value !== "string") return false;
   const address = value.trim();
-  return /^(?:utest1|ztestsapling1)[a-z0-9]{20,}$/i.test(address);
+  return /^(?:utest1|ztestsapling1|tm)[a-z0-9]{20,}$/i.test(address);
 }
 
 export function isValidZecInput(value: string): boolean {
@@ -158,4 +158,18 @@ export function createEphemeralZcashWallet(): EphemeralZcashWallet {
     JSON.stringify(wallet),
   );
   return wallet;
+}
+
+/**
+ * Deterministically derives a 4-digit Delivery Handover PIN from the order ID.
+ * Stable across any device and session for the same order ID.
+ */
+export function getHandoverPin(orderId: string): string {
+  if (!orderId) return "0000";
+  let hash = 0;
+  for (let i = 0; i < orderId.length; i++) {
+    hash = ((hash << 5) - hash + orderId.charCodeAt(i)) | 0;
+  }
+  const pin = Math.abs(hash % 9000) + 1000;
+  return String(pin);
 }

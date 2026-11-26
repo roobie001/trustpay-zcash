@@ -2,12 +2,31 @@
 
 import { use, useEffect, useState, type FormEvent } from "react";
 import Link from "next/link";
-import { ArrowRight, Check, ExternalLink, Loader2, PackageSearch, ShieldCheck, TriangleAlert, Wallet } from "lucide-react";
+import {
+  ArrowRight,
+  Check,
+  ExternalLink,
+  EyeOff,
+  Loader2,
+  PackageSearch,
+  Shield,
+  ShieldAlert,
+  ShieldCheck,
+  TriangleAlert,
+  Truck,
+  Wallet,
+} from "lucide-react";
 import { supabase, type EscrowOrder } from "@/lib/supabase";
 import { formatZec, explorerTxUrl } from "@/lib/zcash";
+import { formatZecEquivalents, getZecRates, type ZecRates } from "@/lib/format";
 import { DEFAULT_DIAL_CODE, toE164 } from "@/lib/phone";
 import { VAULT_NAME } from "@/lib/constants";
-import { cardClass, inputClass, labelClass, primaryButtonClass } from "@/lib/ui";
+import {
+  getSavedBuyerProfile,
+  saveBuyerProfile,
+  saveRecentDeal,
+} from "@/lib/storage";
+import { cardClass, inputClass, labelClass, primaryButtonClass, secondaryButtonClass } from "@/lib/ui";
 import { PageMessage, PageShell } from "@/components/page-shell";
 import { PhoneInput } from "@/components/phone-input";
 import { ZcashCheckoutModal } from "@/components/zcash-checkout-modal";
@@ -17,60 +36,165 @@ export default function PayPage({ params }: { params: Promise<{ id: string }> })
   const [order, setOrder] = useState<EscrowOrder | null>(null);
   const [loading, setLoading] = useState(true);
   const [notFound, setNotFound] = useState(false);
-  const [buyerName, setBuyerName] = useState("");
-  const [dialCode, setDialCode] = useState(DEFAULT_DIAL_CODE.dial);
-  const [buyerPhone, setBuyerPhone] = useState("");
+
+  // Buyer Form Details - initialized from local profile
+  const [buyerName, setBuyerName] = useState(() => getSavedBuyerProfile()?.name || "");
+  const [dialCode, setDialCode] = useState(() => getSavedBuyerProfile()?.dialCode || DEFAULT_DIAL_CODE.dial);
+  const [buyerPhone, setBuyerPhone] = useState(() => getSavedBuyerProfile()?.phone || "");
+  const [doorstepAddress, setDoorstepAddress] = useState(() => getSavedBuyerProfile()?.doorstep_address || "");
+  const [landmark, setLandmark] = useState(() => getSavedBuyerProfile()?.landmark || "");
+  const [saveLocally, setSaveLocally] = useState(true);
+
   const [error, setError] = useState<string | null>(null);
   const [txid, setTxid] = useState<string | null>(null);
   const [checkoutOpen, setCheckoutOpen] = useState(false);
   const [awaitingConfirmation, setAwaitingConfirmation] = useState(false);
-  const [simMode, setSimMode] = useState(() => typeof window !== "undefined" && new URLSearchParams(window.location.search).get("sim") === "true");
+  const [rates, setRates] = useState<ZecRates | null>(null);
 
+  const [simMode, setSimMode] = useState(
+    () => typeof window !== "undefined" && new URLSearchParams(window.location.search).get("sim") === "true"
+  );
+
+  // Load live rates
+  useEffect(() => {
+    void getZecRates().then(setRates);
+  }, []);
+
+  // Hydrate order
   useEffect(() => {
     let active = true;
-    void supabase.from("escrow_orders").select("*").eq("id", id).maybeSingle().then(({ data }) => {
-      if (!active) return;
-      if (data) setOrder(data);
-      else setNotFound(true);
-      setLoading(false);
-    });
-    return () => { active = false; };
+
+    // Fetch order from Supabase
+    void supabase
+      .from("escrow_orders")
+      .select("*")
+      .eq("id", id)
+      .maybeSingle()
+      .then(({ data }) => {
+        if (!active) return;
+        if (data) {
+          setOrder(data);
+          if (data.status === "HELD_IN_ESCROW" || data.status === "DISPATCHED" || data.status === "FUNDS_RELEASED") {
+            setTxid(data.fund_txid || "confirmed");
+          }
+        } else {
+          setNotFound(true);
+        }
+        setLoading(false);
+      });
+
+    // Realtime subscription for instant deposit confirmations
+    const channel = supabase
+      .channel(`escrow_orders:pay:${id}`)
+      .on(
+        "postgres_changes",
+        { event: "UPDATE", schema: "public", table: "escrow_orders", filter: `id=eq.${id}` },
+        (payload) => {
+          if (!active) return;
+          const updated = payload.new as EscrowOrder;
+          setOrder(updated);
+          if (updated.status === "HELD_IN_ESCROW" || updated.status === "DISPATCHED" || updated.status === "FUNDS_RELEASED") {
+            setTxid(updated.fund_txid || "confirmed");
+            setCheckoutOpen(false);
+            setAwaitingConfirmation(false);
+          }
+        }
+      )
+      .subscribe();
+
+    return () => {
+      active = false;
+      void supabase.removeChannel(channel);
+    };
   }, [id]);
 
   async function handlePay(event: FormEvent) {
     event.preventDefault();
     if (!order) return;
     setError(null);
+
     const phone = toE164(dialCode, buyerPhone);
     if (!buyerName.trim() || !phone) {
-      setError("Please enter your name and a valid phone number.");
+      setError("Please enter your name and a valid WhatsApp phone number.");
       return;
     }
+
+    if (!doorstepAddress.trim()) {
+      setError("Please enter your doorstep delivery address.");
+      return;
+    }
+
+    // Save buyer profile locally if checked
+    if (saveLocally) {
+      saveBuyerProfile({
+        name: buyerName.trim(),
+        dialCode,
+        phone: buyerPhone.trim(),
+        doorstep_address: doorstepAddress.trim(),
+        landmark: landmark.trim(),
+      });
+    }
+
+    // Persist buyer details into order metadata (with doorstep & landmark)
+    try {
+      const fullDeliveryAddress = landmark.trim()
+        ? `${doorstepAddress.trim()} (Landmark: ${landmark.trim()})`
+        : doorstepAddress.trim();
+
+      await fetch(`/api/orders/${order.id}/meta`, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          doorstep_address: doorstepAddress.trim(),
+          landmark: landmark.trim(),
+        }),
+      });
+
+      await supabase
+        .from("escrow_orders")
+        .update({
+          buyer_name: buyerName.trim(),
+          buyer_phone: phone,
+          buyer_address: fullDeliveryAddress,
+        })
+        .eq("id", order.id);
+
+      // Save into buyer's recent deals
+      saveRecentDeal({
+        id: order.id,
+        item_title: order.item_title,
+        amount: Number(order.amount),
+        delivery_fee: Number(order.delivery_fee || 0),
+        role: "buyer",
+        status: order.status,
+        created_at: order.created_at,
+        vendor_address: order.vendor_address,
+      });
+    } catch (err) {
+      console.warn("Failed to update buyer metadata before checkout:", err);
+    }
+
     setCheckoutOpen(true);
   }
 
   async function recordFunding(paymentTxid: string, buyerAddress: string) {
     setError(null);
     if (paymentTxid.startsWith("txid_sim_")) {
-      setOrder((current) => current ? { ...current, status: "HELD_IN_ESCROW", fund_txid: paymentTxid } : current);
+      setOrder((current) =>
+        current ? { ...current, status: "HELD_IN_ESCROW", fund_txid: paymentTxid } : current
+      );
       setTxid(paymentTxid);
       setCheckoutOpen(false);
       return;
     }
+
     const response = await fetch("/api/escrow/fund", {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({ orderId: order!.id, txid: paymentTxid, buyerAddress }),
-      });
-    const result = await response.json() as { success?: boolean; error?: string };
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ orderId: order!.id, txid: paymentTxid, buyerAddress }),
+    });
+    const result = (await response.json()) as { success?: boolean; error?: string };
     if (response.ok && result.success) {
-      const phone = toE164(dialCode, buyerPhone);
-      if (phone) {
-        await supabase.from("escrow_orders").update({
-          buyer_name: buyerName.trim(),
-          buyer_phone: phone,
-        }).eq("id", order!.id);
-      }
       setTxid(paymentTxid);
       setCheckoutOpen(false);
       return;
@@ -79,58 +203,269 @@ export default function PayPage({ params }: { params: Promise<{ id: string }> })
     setError(result.error ?? "Payment submitted. Waiting for shielded confirmation.");
   }
 
-  useEffect(() => {
-    if (!order || (!checkoutOpen && !awaitingConfirmation)) return;
-    const poll = window.setInterval(async () => {
-      const response = await fetch(`/api/escrow/status?orderId=${encodeURIComponent(order.id)}`, { cache: "no-store" });
-      if (!response.ok) return;
-      const result = await response.json() as { status?: EscrowOrder["status"]; fund_txid?: string | null };
-      if (result.status) setOrder((current) => current ? { ...current, status: result.status!, fund_txid: result.fund_txid ?? current.fund_txid } : current);
-      if (result.status === "HELD_IN_ESCROW") {
-        setTxid(result.fund_txid ?? "confirmed");
-        setAwaitingConfirmation(false);
-        setCheckoutOpen(false);
-      }
-    }, 4000);
-    return () => window.clearInterval(poll);
-  }, [awaitingConfirmation, checkoutOpen, order]);
+  if (loading) {
+    return (
+      <PageShell>
+        <PageMessage icon={<Loader2 className="h-7 w-7 animate-spin text-amber-500" />}>
+          Loading escrow details…
+        </PageMessage>
+      </PageShell>
+    );
+  }
 
-  if (loading) return <PageShell><PageMessage icon={<Loader2 className="h-6 w-6 animate-spin text-slate-400" />}>Loading escrow…</PageMessage></PageShell>;
-  if (notFound || !order) return <PageShell><PageMessage icon={<PackageSearch className="h-8 w-8 text-slate-400" />}>This escrow link doesn&apos;t exist or was removed.</PageMessage></PageShell>;
+  if (notFound || !order) {
+    return (
+      <PageShell>
+        <PageMessage icon={<PackageSearch className="h-9 w-9 text-slate-500" />}>
+          This escrow link doesn&apos;t exist or was removed.
+        </PageMessage>
+      </PageShell>
+    );
+  }
 
   const total = Number(order.amount) + Number(order.delivery_fee);
   const displayedTxid = txid ?? (order.status === "HELD_IN_ESCROW" ? order.fund_txid : null);
+  const isPaid = order.status !== "PENDING_PAYMENT";
+
   return (
     <PageShell>
+      {/* Order Header */}
       <div className="mb-6 text-center">
-        <div className="mx-auto mb-4 flex h-10 w-10 items-center justify-center rounded-lg border border-border-subtle text-brand"><ShieldCheck className="h-5 w-5" /></div>
-        <h1 className="text-2xl font-semibold tracking-tight text-primary-text">{order.item_title}</h1>
-        <p className="mt-1 text-sm text-muted-text">Sold by {order.seller_name}</p>
+        <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-2xl border border-slate-800 bg-[#0F172A] text-amber-500 shadow-lg shadow-black/20">
+          <ShieldCheck className="h-6 w-6" />
+        </div>
+        <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-white leading-tight">
+          {order.item_title}
+        </h1>
+        <p className="mt-1.5 text-sm sm:text-base text-slate-400">
+          Sold by <span className="font-semibold text-slate-200">{order.seller_name}</span>
+        </p>
       </div>
-      <div className="mb-4 flex gap-3 rounded-xl border border-amber-500/20 bg-amber-500/10 p-4">
-        <ShieldCheck className="h-5 w-5 shrink-0 text-brand" />
-        <p className="text-sm leading-relaxed text-amber-200"><span className="font-semibold">{VAULT_NAME} protected:</span> the vendor is paid only after delivery confirmation.</p>
+
+      {/* Escrow Shield Banner */}
+      <div className="mb-6 flex gap-3.5 rounded-2xl border border-amber-500/30 bg-amber-500/10 p-4 sm:p-5 shadow-sm">
+        <ShieldCheck className="h-5 w-5 shrink-0 text-amber-500 mt-0.5" />
+        <div className="text-xs sm:text-sm leading-relaxed text-amber-200">
+          <span className="font-semibold text-amber-300">{VAULT_NAME} Protected:</span> Your payment is
+          held in private escrow. The seller is only paid after you inspect and accept your delivery.
+        </div>
       </div>
-      <div className={`${cardClass} mb-4 p-5`}>
-        <div className="flex items-center justify-between text-sm text-muted-text"><span>Item + delivery</span><strong className="font-mono text-lg tabular-nums text-primary-text">{formatZec(total)}</strong></div>
-        <p className="mt-2 text-xs text-muted-text">The order id is included in Zcash&apos;s encrypted memo.</p>
+
+      {/* Order Pricing Card */}
+      <div className={`${cardClass} mb-6 p-5 sm:p-6`}>
+        <div className="flex items-center justify-between">
+          <span className="text-xs font-semibold uppercase tracking-wider text-slate-400">
+            Total Escrow Due (Item + Delivery)
+          </span>
+          <div className="text-right">
+            <strong className="block font-mono text-2xl sm:text-3xl font-bold tabular-nums text-amber-500">
+              {formatZec(total)}
+            </strong>
+            <p className="text-xs font-medium text-slate-400 mt-0.5">
+              {formatZecEquivalents(total, rates).summary}
+            </p>
+          </div>
+        </div>
+
+        <div className="mt-4 flex items-center justify-between border-t border-slate-800/80 pt-3 text-xs text-slate-400">
+          <span>Item: <strong className="font-mono text-slate-200">{formatZec(Number(order.amount))}</strong></span>
+          <span>Delivery Fee: <strong className="font-mono text-slate-200">{formatZec(Number(order.delivery_fee))}</strong></span>
+        </div>
       </div>
-      {displayedTxid ? (
-        <div className={`${cardClass} p-6 text-center`}><Check className="mx-auto mb-3 h-12 w-12 rounded-full bg-brand p-3 text-canvas" /><h2 className="font-semibold text-primary-text">Shielded payment submitted</h2><p className="mt-1 text-sm text-muted-text">Taking you to the order tracker…</p><a className="mt-4 inline-flex items-center gap-1 text-sm text-brand" href={explorerTxUrl(displayedTxid)} target="_blank" rel="noreferrer">View transaction <ExternalLink className="h-3.5 w-3.5" /></a></div>
+
+      {/* Payment Confirmed State */}
+      {displayedTxid || isPaid ? (
+        <div className={`${cardClass} p-7 text-center`}>
+          <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-amber-500 text-[#030712] shadow-lg shadow-amber-500/20">
+            <Check className="h-7 w-7 stroke-[2.5]" />
+          </div>
+          <h2 className="text-lg sm:text-xl font-bold text-white tracking-tight">
+            Payment Held in Shielded Escrow
+          </h2>
+          <p className="mt-2 text-sm text-slate-300 leading-relaxed max-w-sm mx-auto">
+            Your ZEC has been verified in the escrow vault. The vendor has been notified to dispatch your
+            order.
+          </p>
+
+          <div className="mt-6 flex flex-col gap-3 sm:flex-row">
+            <Link href={`/order/${order.id}`} className={`${primaryButtonClass} flex-1`}>
+              Track Order &amp; Delivery <ArrowRight className="h-4 w-4" />
+            </Link>
+
+            {displayedTxid && !displayedTxid.startsWith("txid_sim_") && (
+              <a
+                href={explorerTxUrl(displayedTxid)}
+                target="_blank"
+                rel="noreferrer"
+                className={`${secondaryButtonClass} flex-1`}
+              >
+                View on Chain <ExternalLink className="h-4 w-4" />
+              </a>
+            )}
+          </div>
+        </div>
       ) : (
-        <form onSubmit={handlePay} className={`${cardClass} space-y-4 p-5 sm:p-6`}>
-          <div><label htmlFor="buyer-name" className={labelClass}>Your name</label><input id="buyer-name" value={buyerName} onChange={(e) => setBuyerName(e.target.value)} className={inputClass} /></div>
-          <PhoneInput id="buyer-phone" label="Phone number" dialCode={dialCode} onDialCodeChange={setDialCode} value={buyerPhone} onChange={setBuyerPhone} />
-          {error && <p role="alert" className="flex gap-2 rounded-lg border border-red-500/30 bg-red-500/10 px-3.5 py-2.5 text-sm text-red-300"><TriangleAlert className="h-4 w-4 shrink-0" />{error}</p>}
-          <button type="button" onClick={() => setSimMode((active) => !active)} className={`w-full rounded-lg border px-3 py-2 text-xs font-semibold transition ${simMode ? "border-brand/50 bg-brand/10 text-brand" : "border-border-subtle text-muted-text hover:text-primary-text"}`}>
-            ⚡ {simMode ? "Sim Mode active" : "Enable Sim Mode"}
+        /* Buyer Checkout Form */
+        <form onSubmit={handlePay} className={`${cardClass} space-y-5 p-5 sm:p-7`}>
+          <div className="border-b border-slate-800/80 pb-4">
+            <div className="flex items-center justify-between">
+              <h3 className="text-base sm:text-lg font-semibold tracking-tight text-white">
+                Doorstep Delivery Details
+              </h3>
+              <span className="inline-flex items-center gap-1 rounded-full border border-emerald-500/30 bg-emerald-500/10 px-2.5 py-0.5 text-xs font-medium text-emerald-400">
+                <EyeOff className="h-3 w-3" />
+                Asymmetric Privacy
+              </span>
+            </div>
+            <p className="mt-1 text-xs text-slate-400 leading-relaxed">
+              Contact and address remain masked from the seller until escrow deposit is locked on-chain.
+            </p>
+          </div>
+
+          <div>
+            <label htmlFor="buyer-name" className={labelClass}>
+              Your Full Name *
+            </label>
+            <input
+              id="buyer-name"
+              value={buyerName}
+              onChange={(e) => setBuyerName(e.target.value)}
+              placeholder="e.g. Adebayo Davies"
+              className={inputClass}
+            />
+          </div>
+
+          <PhoneInput
+            id="buyer-phone"
+            label="WhatsApp Phone Number *"
+            dialCode={dialCode}
+            onDialCodeChange={setDialCode}
+            value={buyerPhone}
+            onChange={setBuyerPhone}
+          />
+
+          <div>
+            <label htmlFor="doorstep-address" className={labelClass}>
+              Doorstep Delivery Address *
+            </label>
+            <input
+              id="doorstep-address"
+              value={doorstepAddress}
+              onChange={(e) => setDoorstepAddress(e.target.value)}
+              placeholder="House/Apt No., Street, City, State"
+              className={inputClass}
+            />
+          </div>
+
+          <div>
+            <label htmlFor="landmark" className={labelClass}>
+              Nearest Landmark <span className="font-normal text-slate-500">(optional)</span>
+            </label>
+            <input
+              id="landmark"
+              value={landmark}
+              onChange={(e) => setLandmark(e.target.value)}
+              placeholder="Opposite Zenith Bank / Beside City Mall"
+              className={inputClass}
+            />
+          </div>
+
+          <label className="flex items-center gap-2.5 text-xs text-slate-400 cursor-pointer pt-1">
+            <input
+              type="checkbox"
+              checked={saveLocally}
+              onChange={(e) => setSaveLocally(e.target.checked)}
+              className="h-4 w-4 rounded border-slate-700 bg-slate-900 text-amber-500 focus:ring-amber-500"
+            />
+            Save my delivery details locally for faster checkout next time
+          </label>
+
+          {error && (
+            <p
+              role="alert"
+              className="flex items-center gap-2 rounded-xl border border-red-500/30 bg-red-500/10 px-4 py-3 text-xs text-red-300"
+            >
+              <TriangleAlert className="h-4 w-4 shrink-0" />
+              {error}
+            </p>
+          )}
+
+          {/* Quick Sim Mode Switcher */}
+          <button
+            type="button"
+            onClick={() => setSimMode((active) => !active)}
+            className={`w-full min-h-[44px] rounded-xl border px-4 py-2.5 text-xs font-semibold transition ${
+              simMode
+                ? "border-amber-500/50 bg-amber-500/10 text-amber-400 shadow-sm"
+                : "border-slate-800 bg-slate-900/60 text-slate-400 hover:text-slate-200"
+            }`}
+          >
+            ⚡ {simMode ? "Sim Mode Active (Instant Simulated Testnet Deposit)" : "Enable Demo Simulation Mode"}
           </button>
-          <button type="submit" className={`${primaryButtonClass} w-full py-3.5`}><Wallet className="h-4 w-4" />Choose private payment method</button>
+
+          <button type="submit" className={`${primaryButtonClass} w-full py-4 text-base`}>
+            <Wallet className="h-5 w-5" />
+            Proceed to Private Shielded Payment
+          </button>
+
+          {/* 3-Point Escrow Protection Summary */}
+          <div className="mt-6 border-t border-slate-800/80 pt-5">
+            <p className="mb-3 text-xs font-semibold uppercase tracking-wider text-slate-400">
+              TrustPay Buyer Protection Guarantee
+            </p>
+            <ul className="space-y-3 text-xs">
+              <li className="flex items-start gap-2.5 text-slate-300">
+                <Shield className="mt-0.5 h-4 w-4 shrink-0 text-amber-500" />
+                <div>
+                  <span className="font-semibold text-white">1. Shielded Escrow Vault:</span> Your
+                  ZEC is held in an encrypted, neutral vault bound to your order memo.
+                </div>
+              </li>
+              <li className="flex items-start gap-2.5 text-slate-300">
+                <Truck className="mt-0.5 h-4 w-4 shrink-0 text-amber-500" />
+                <div>
+                  <span className="font-semibold text-white">2. Delivery Guarantee:</span> The
+                  vendor receives zero payout until you verify and confirm package delivery.
+                </div>
+              </li>
+              <li className="flex items-start gap-2.5 text-slate-300">
+                <ShieldAlert className="mt-0.5 h-4 w-4 shrink-0 text-emerald-400" />
+                <div>
+                  <span className="font-semibold text-white">3. Instant Dispute Freeze:</span> Any
+                  defect or missing item freezes the escrow instantly with 1 tap.
+                </div>
+              </li>
+            </ul>
+          </div>
         </form>
       )}
-      {awaitingConfirmation && <p className="mt-4 rounded-xl border border-amber-500/30 bg-amber-500/10 p-3 text-center text-sm text-amber-200">Awaiting Shielded Confirmation… The tracker will update automatically.</p>}
-      <Link href={`/order/${order.id}`} className="mx-auto mt-5 flex w-fit items-center gap-1 text-xs text-muted-text">View order status <ArrowRight className="h-3.5 w-3.5" /></Link>
-      <ZcashCheckoutModal open={checkoutOpen} order={order} amount={total} simMode={simMode} onClose={() => setCheckoutOpen(false)} onPaymentSubmitted={(paymentTxid, buyerAddress) => void recordFunding(paymentTxid, buyerAddress)} />
+
+      {awaitingConfirmation && (
+        <p className="mt-4 rounded-xl border border-amber-500/30 bg-amber-500/10 p-3.5 text-center text-xs text-amber-200">
+          Awaiting Shielded Confirmation… The tracker will update automatically via Realtime.
+        </p>
+      )}
+
+      <div className="mt-6 text-center">
+        <Link
+          href={`/order/${order.id}`}
+          className="inline-flex items-center gap-1.5 text-xs font-medium text-slate-400 hover:text-white"
+        >
+          View public order status tracker <ArrowRight className="h-3.5 w-3.5" />
+        </Link>
+      </div>
+
+      {/* Checkout Modal */}
+      <ZcashCheckoutModal
+        open={checkoutOpen}
+        order={order}
+        amount={total}
+        simMode={simMode}
+        onClose={() => setCheckoutOpen(false)}
+        onPaymentSubmitted={(paymentTxid, buyerAddress) =>
+          void recordFunding(paymentTxid, buyerAddress)
+        }
+      />
     </PageShell>
   );
 }

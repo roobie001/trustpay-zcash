@@ -36,10 +36,12 @@ export type EscrowOrder = {
   seller_id: string | null;
   vendor_address: string;
   escrow_vault_address: string;
+  buyer_address: string | null;
   buyer_name: string | null;
   buyer_phone: string | null;
   fund_txid: string | null;
   release_txid: string | null;
+  paid_at?: string | null;
   status: "PENDING_PAYMENT" | "HELD_IN_ESCROW" | "DISPATCHED" | "FUNDS_RELEASED" | "DISPUTED";
   created_at: string;
 };
