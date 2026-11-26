@@ -16,7 +16,7 @@ interface PageShellProps {
 /** Brand header shared by the buyer checkout and order tracker pages. */
 export function PageShell({ children, role = "general", rightSlot }: PageShellProps) {
   const [menuOpen, setMenuOpen] = useState(false);
-  const isBuyer = role === "buyer";
+  const isGeneral = role === "general";
 
   // Close mobile drawer when resizing to desktop
   useEffect(() => {
@@ -45,19 +45,19 @@ export function PageShell({ children, role = "general", rightSlot }: PageShellPr
         <div className="flex items-center justify-between gap-3">
           <BrandLockup href="/" subtitle="Shielded Escrow" />
 
-          {/* If buyer checkout view: strictly buyer-only controls (no vendor creation clutter) */}
-          {isBuyer ? (
+          {/* Buyer Checkout or Order Tracker: Strictly role-specific controls (no vendor creation clutter) */}
+          {!isGeneral ? (
             <div className="flex shrink-0 items-center gap-2">
               {rightSlot ?? (
                 <span className="inline-flex items-center gap-1.5 rounded-full border border-emerald-500/30 bg-emerald-500/10 px-2.5 sm:px-3 py-1 text-xs font-semibold text-emerald-400">
                   <ShieldCheck className="h-3.5 w-3.5 shrink-0" />
-                  <span>Shielded Vault</span>
+                  <span>{role === "tracker" ? "Shielded Escrow" : "Shielded Vault"}</span>
                 </span>
               )}
             </div>
           ) : (
             <>
-              {/* General / Tracker view: Desktop Navigation Links (sm: and up) */}
+              {/* General view: Desktop Navigation Links (sm: and up) */}
               <div className="hidden sm:flex shrink-0 items-center gap-2.5">
                 {rightSlot}
                 <Link
@@ -90,8 +90,8 @@ export function PageShell({ children, role = "general", rightSlot }: PageShellPr
           )}
         </div>
 
-        {/* Collapsible Mobile Menu Drawer (only for general/tracker, never for buyer) */}
-        {!isBuyer && menuOpen && (
+        {/* Collapsible Mobile Menu Drawer (only for general, never for buyer or tracker) */}
+        {isGeneral && menuOpen && (
           <div className="mt-3 block sm:hidden rounded-2xl border border-slate-800/90 bg-[#0F172A]/95 p-4 shadow-2xl backdrop-blur-md transition-all">
             <div className="space-y-2.5">
               <span className="block mb-1 text-xs font-semibold uppercase tracking-wider text-slate-400">

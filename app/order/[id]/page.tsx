@@ -19,7 +19,6 @@ import {
   ShieldAlert,
   ShieldCheck,
   Truck,
-  User,
   Wallet,
   X,
 } from "lucide-react";
@@ -361,6 +360,10 @@ export default function OrderPage({ params }: { params: Promise<{ id: string }> 
   const handoverPin = getHandoverPin(order.id);
   const pinDigits = handoverPin.split("");
 
+  // Role separation: Only authorized sellers (with verified key) can access seller mode
+  const isAuthorizedSeller = Boolean(sellerAuthorized && (urlKey || activeSellerKey));
+  const isSellerMode = isAuthorizedSeller && sellerView;
+
   // Buyer full delivery address
   const rawBuyerAddress =
     metadata.doorstep_address
@@ -373,66 +376,73 @@ export default function OrderPage({ params }: { params: Promise<{ id: string }> 
   const buyerCleanPhone = (order.buyer_phone || "").replace(/\D/g, "");
 
   return (
-    <PageShell role="tracker">
-      {/* Top Bar: View Role Switcher & Tracking Link */}
+    <PageShell
+      role="tracker"
+      rightSlot={
+        <div className="flex items-center gap-2">
+          <span className="inline-flex items-center gap-1.5 rounded-full border border-emerald-500/30 bg-emerald-500/10 px-2.5 sm:px-3 py-1 text-xs font-semibold text-emerald-400">
+            <ShieldCheck className="h-3.5 w-3.5 shrink-0" />
+            <span className="hidden xs:inline">Shielded</span>
+            <span>Escrow</span>
+          </span>
+        </div>
+      }
+    >
+      {/* Top Bar: Order Escrow Tracker ID + Share / Copy Tracking Link (Strict Buyer Tracking Header) */}
       <div className="mb-5 flex flex-wrap items-center justify-between gap-3 border-b border-slate-800/80 pb-4">
-        {/* Buyer View vs Seller View Switcher */}
-        <div className="flex rounded-full border border-slate-800 bg-[#0F172A] p-1 text-xs font-semibold shadow-inner">
-          <button
-            type="button"
-            onClick={() => setSellerView(false)}
-            className={`flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs transition ${
-              !sellerView
-                ? "bg-amber-500 text-[#030712] font-bold shadow"
-                : "text-slate-400 hover:text-slate-200"
-            }`}
-          >
-            <User className="h-3.5 w-3.5" />
-            Buyer View
-          </button>
-          <button
-            type="button"
-            onClick={() => setSellerView(true)}
-            className={`flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs transition ${
-              sellerView
-                ? "bg-amber-500 text-[#030712] font-bold shadow"
-                : "text-slate-400 hover:text-slate-200"
-            }`}
-          >
-            <LayoutDashboard className="h-3.5 w-3.5" />
-            Seller View
-          </button>
+        <div className="flex items-center gap-2">
+          <span className="inline-flex items-center gap-1.5 rounded-full border border-slate-700/80 bg-slate-900/90 px-3 py-1.5 text-xs font-semibold text-slate-200">
+            <ShieldCheck className="h-3.5 w-3.5 text-amber-500" />
+            <span>Order Escrow Tracker</span>
+          </span>
+          <span className="font-mono text-xs text-slate-400">
+            #{order.id.slice(0, 8)}
+          </span>
         </div>
 
-        <div className="flex items-center gap-2">
-          {sellerView && (
+        <button
+          type="button"
+          onClick={() => void copyTrackingLink()}
+          className="inline-flex min-h-[38px] items-center gap-1.5 rounded-xl border border-slate-700/80 bg-slate-900/90 px-3.5 py-1.5 text-xs font-semibold text-slate-300 transition hover:bg-slate-800 hover:text-white"
+        >
+          {copiedTracking ? <Check className="h-3.5 w-3.5 text-amber-500" /> : <Copy className="h-3.5 w-3.5 text-slate-400" />}
+          {copiedTracking ? "Tracking Link Copied!" : "Share Tracking Link"}
+        </button>
+      </div>
+
+      {/* Authorized Seller Management Bar (ONLY rendered when authorized via private seller key) */}
+      {isAuthorizedSeller && (
+        <div className="mb-5 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-purple-500/30 bg-purple-500/10 p-3.5 sm:px-4 text-xs font-medium text-purple-200 shadow-sm">
+          <div className="flex items-center gap-2">
+            <LayoutDashboard className="h-4 w-4 text-purple-400 shrink-0" />
+            <span><strong>Seller Management Mode</strong> — Authorized via private key</span>
+          </div>
+          <div className="flex items-center gap-2">
             <button
               type="button"
               onClick={() => setSellerDashOpen(true)}
-              className="inline-flex min-h-[38px] items-center gap-1.5 rounded-xl border border-slate-700/80 bg-slate-900/90 px-3 py-1.5 text-xs font-semibold text-slate-200 hover:bg-slate-800 hover:text-white"
+              className="inline-flex items-center gap-1.5 rounded-lg border border-purple-500/30 bg-purple-500/20 px-3 py-1.5 text-xs font-semibold text-purple-100 hover:bg-purple-500/30 transition"
             >
-              <Wallet className="h-3.5 w-3.5 text-amber-500" />
+              <Wallet className="h-3.5 w-3.5 text-amber-400" />
               Seller Ledger
             </button>
-          )}
-
-          <button
-            type="button"
-            onClick={() => void copyTrackingLink()}
-            className="inline-flex min-h-[38px] items-center gap-1.5 rounded-xl border border-slate-700/80 bg-slate-900/90 px-3 py-1.5 text-xs font-semibold text-slate-300 hover:bg-slate-800 hover:text-white"
-          >
-            {copiedTracking ? <Check className="h-3.5 w-3.5 text-amber-500" /> : <Copy className="h-3.5 w-3.5" />}
-            {copiedTracking ? "Copied!" : "Copy Tracking Link"}
-          </button>
+            <button
+              type="button"
+              onClick={() => setSellerView((v) => !v)}
+              className="inline-flex items-center gap-1 rounded-lg border border-slate-700 bg-slate-900 px-2.5 py-1.5 text-xs font-medium text-slate-300 hover:bg-slate-800 transition"
+            >
+              {sellerView ? "Preview Buyer View" : "Return to Seller Mode"}
+            </button>
+          </div>
         </div>
-      </div>
+      )}
 
       {/* Order Title and Pricing Header */}
       <div className="mb-6 text-center">
-        {sellerView && (
+        {isSellerMode && (
           <span className="mb-2.5 inline-flex items-center gap-1.5 rounded-full border border-purple-500/30 bg-purple-500/10 px-3 py-1 text-xs font-medium text-purple-300">
             <LayoutDashboard className="h-3.5 w-3.5" />
-            Seller Management View {sellerAuthorized ? "(Authorized)" : ""}
+            Seller Management View
           </span>
         )}
         <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-white leading-tight">
@@ -483,39 +493,85 @@ export default function OrderPage({ params }: { params: Promise<{ id: string }> 
         </div>
       )}
 
-      {/* 4-Step Tracker */}
+      {/* 4-Step Lifecycle Tracker */}
       <div className={`${cardClass} mb-5 p-5 sm:p-6`}>
-        <div className="mb-3 text-xs font-semibold uppercase tracking-wider text-slate-400">
-          Escrow Lifecycle
+        <div className="mb-4 flex items-center justify-between border-b border-slate-800/80 pb-3">
+          <span className="text-xs font-semibold uppercase tracking-wider text-slate-400">
+            Escrow Lifecycle Progress
+          </span>
+          <span className="font-mono text-xs font-semibold text-slate-400">
+            {isDisputed
+              ? "DISPUTED"
+              : released
+              ? "4 / 4 COMPLETED"
+              : `${stageIndex + 1} / 4 STAGES`}
+          </span>
         </div>
-        <ol className="space-y-4">
+        <ol className="relative space-y-4">
           {stages.map(([status, label, Icon], index) => {
-            const isDone = !isDisputed && index <= stageIndex;
-            const isCurrent = !isDisputed && status === order.status;
+            const isCompleted = !isDisputed && (released ? true : index < stageIndex);
+            const isActive = !isDisputed && !released && index === stageIndex;
+            const isUpcoming = isDisputed || (!isCompleted && !isActive);
 
             return (
-              <li key={status} className="flex items-center gap-3.5">
-                <span
-                  className={`flex h-9 w-9 items-center justify-center rounded-xl border-2 transition ${
-                    isDone
-                      ? "border-amber-500 bg-amber-500 text-[#030712] font-bold shadow-md shadow-amber-500/20"
-                      : isCurrent
-                      ? "border-amber-400 bg-amber-400/20 text-amber-400 ring-4 ring-amber-500/10"
-                      : "border-slate-800 bg-[#030712] text-slate-600"
-                  }`}
-                >
-                  <Icon className="h-4 w-4" />
-                </span>
+              <li key={status} className="relative flex items-center gap-3.5">
+                {/* Vertical connector line connecting consecutive step icons */}
+                {index < stages.length - 1 && (
+                  <span
+                    className={`absolute left-[18px] top-9 h-4 w-0.5 -translate-x-1/2 transition-colors ${
+                      isCompleted && !isDisputed ? "bg-emerald-500/40" : "bg-slate-800"
+                    }`}
+                    aria-hidden="true"
+                  />
+                )}
+
+                {/* State-specific Icon Badge */}
+                {isCompleted ? (
+                  <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-emerald-500/40 bg-emerald-500/15 text-emerald-400 shadow-sm shadow-emerald-500/10">
+                    <Check className="h-4 w-4 stroke-[2.5]" />
+                  </span>
+                ) : isActive ? (
+                  <span className="relative flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border-2 border-amber-400 bg-amber-500/20 text-amber-400 ring-4 ring-amber-500/15 shadow-md shadow-amber-500/10">
+                    <Icon className="h-4 w-4" />
+                  </span>
+                ) : (
+                  <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-slate-800 bg-[#030712] text-slate-600">
+                    <Icon className="h-4 w-4" />
+                  </span>
+                )}
+
+                {/* Stage Label & Status Tag */}
                 <div className="flex flex-col">
                   <span
                     className={`text-sm ${
-                      isDone ? "font-semibold text-white" : "text-slate-400"
+                      isActive
+                        ? "font-bold text-white"
+                        : isCompleted
+                        ? "font-semibold text-slate-200"
+                        : "text-slate-500"
                     }`}
                   >
                     {label}
                   </span>
-                  {isCurrent && (
-                    <span className="text-[11px] font-medium text-amber-400">Active Stage</span>
+                  {isCompleted && (
+                    <span className="inline-flex items-center gap-1 text-[11px] font-medium text-emerald-400">
+                      <Check className="h-3 w-3 stroke-[3]" />
+                      <span>Completed</span>
+                    </span>
+                  )}
+                  {isActive && (
+                    <span className="inline-flex items-center gap-1.5 text-[11px] font-bold text-amber-400">
+                      <span className="relative flex h-2 w-2">
+                        <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-amber-400 opacity-75" />
+                        <span className="relative inline-flex h-2 w-2 rounded-full bg-amber-500" />
+                      </span>
+                      <span>Active Stage</span>
+                    </span>
+                  )}
+                  {isUpcoming && (
+                    <span className="text-[11px] font-medium text-slate-600">
+                      {isDisputed ? "Paused" : "Upcoming"}
+                    </span>
                   )}
                 </div>
               </li>
@@ -525,9 +581,9 @@ export default function OrderPage({ params }: { params: Promise<{ id: string }> 
       </div>
 
       {/* =========================================================================
-          ASYMMETRIC PRIVACY: SELLER VIEW
+          ASYMMETRIC PRIVACY: SELLER VIEW (Authorized Sellers Only)
           ========================================================================= */}
-      {sellerView && (
+      {isSellerMode && (
         <div className="mb-5 space-y-5">
           {/* Asymmetric Privacy Information Box */}
           <div className={`${cardClass} p-5 sm:p-6`}>
@@ -671,10 +727,29 @@ export default function OrderPage({ params }: { params: Promise<{ id: string }> 
       )}
 
       {/* =========================================================================
-          BUYER VIEW: HANDOVER PIN & RIDER CALL
+          BUYER VIEW: HANDOVER PIN & RIDER CALL & ESCROW VAULT SECURED
           ========================================================================= */}
-      {!sellerView && (
+      {!isSellerMode && (
         <div className="mb-5 space-y-5">
+          {/* When HELD_IN_ESCROW: Inform buyer that deposit is safely locked in the shielded vault */}
+          {isHeld && (
+            <div className={`${cardClass} border-emerald-500/30 bg-emerald-500/5 p-5 text-left shadow-sm`}>
+              <div className="flex items-start gap-3.5">
+                <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-emerald-500/30 bg-emerald-500/15 text-emerald-400">
+                  <ShieldCheck className="h-5 w-5" />
+                </div>
+                <div className="flex-1">
+                  <h3 className="text-sm font-semibold text-white">Funds Secured in Shielded Vault</h3>
+                  <p className="mt-1 text-xs text-slate-300 leading-relaxed">
+                    Your deposit of <span className="font-mono font-bold text-amber-400">{formatZec(total)}</span> is securely locked in escrow. The seller (<span className="font-semibold text-slate-200">{order.seller_name}</span>) has been notified to dispatch your package.
+                  </p>
+                  <p className="mt-2 text-[11px] text-slate-400">
+                    Once dispatched with a rider, your 4-digit Handover PIN will activate here to verify physical delivery.
+                  </p>
+                </div>
+              </div>
+            </div>
+          )}
           {/* Once DISPATCHED: Show 4-Digit Handover PIN & Rider Call */}
           {isDispatched && (
             <div className={`${cardClass} border-amber-500/40 bg-amber-500/5 p-6 sm:p-7 text-center shadow-lg shadow-black/20`}>
@@ -937,7 +1012,7 @@ export default function OrderPage({ params }: { params: Promise<{ id: string }> 
       <DisputeDrawer
         open={disputeDrawerOpen}
         order={order}
-        isSeller={sellerView}
+        isSeller={isSellerMode}
         onClose={() => setDisputeDrawerOpen(false)}
         onStatusUpdated={(newStatus) => {
           setOrder((prev) => (prev ? { ...prev, status: newStatus } : prev));
