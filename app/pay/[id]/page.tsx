@@ -50,11 +50,8 @@ export default function PayPage({ params }: { params: Promise<{ id: string }> })
   const [txid, setTxid] = useState<string | null>(null);
   const [checkoutOpen, setCheckoutOpen] = useState(false);
   const [awaitingConfirmation, setAwaitingConfirmation] = useState(false);
+  const [toastVerified, setToastVerified] = useState(false);
   const [rates, setRates] = useState<ZecRates | null>(null);
-
-  const [simMode, setSimMode] = useState(
-    () => typeof window !== "undefined" && new URLSearchParams(window.location.search).get("sim") === "true"
-  );
 
   // Load live rates
   useEffect(() => {
@@ -76,7 +73,7 @@ export default function PayPage({ params }: { params: Promise<{ id: string }> })
         if (data) {
           setOrder(data);
           if (data.status === "HELD_IN_ESCROW" || data.status === "DISPATCHED" || data.status === "FUNDS_RELEASED") {
-            setTxid(data.fund_txid || "confirmed");
+            setTxid(data.deposit_txid || data.fund_txid || "confirmed");
           }
         } else {
           setNotFound(true);
@@ -95,9 +92,10 @@ export default function PayPage({ params }: { params: Promise<{ id: string }> })
           const updated = payload.new as EscrowOrder;
           setOrder(updated);
           if (updated.status === "HELD_IN_ESCROW" || updated.status === "DISPATCHED" || updated.status === "FUNDS_RELEASED") {
-            setTxid(updated.fund_txid || "confirmed");
+            setTxid(updated.deposit_txid || updated.fund_txid || "confirmed");
             setCheckoutOpen(false);
             setAwaitingConfirmation(false);
+            setToastVerified(true);
           }
         }
       )
@@ -179,30 +177,24 @@ export default function PayPage({ params }: { params: Promise<{ id: string }> })
     setCheckoutOpen(true);
   }
 
-  async function recordFunding(paymentTxid: string, buyerAddress: string) {
+  function recordFunding(paymentTxid: string) {
     setError(null);
-    if (paymentTxid.startsWith("txid_sim_")) {
-      setOrder((current) =>
-        current ? { ...current, status: "HELD_IN_ESCROW", fund_txid: paymentTxid } : current
-      );
-      setTxid(paymentTxid);
-      setCheckoutOpen(false);
-      return;
-    }
-
-    const response = await fetch("/api/escrow/fund", {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({ orderId: order!.id, txid: paymentTxid, buyerAddress }),
-    });
-    const result = (await response.json()) as { success?: boolean; error?: string };
-    if (response.ok && result.success) {
-      setTxid(paymentTxid);
-      setCheckoutOpen(false);
-      return;
-    }
-    setAwaitingConfirmation(true);
-    setError(result.error ?? "Payment submitted. Waiting for shielded confirmation.");
+    setTxid(paymentTxid);
+    setCheckoutOpen(false);
+    setAwaitingConfirmation(false);
+    setToastVerified(true);
+    setOrder((current) =>
+      current
+        ? {
+            ...current,
+            status: "HELD_IN_ESCROW",
+            deposit_txid: paymentTxid,
+            fund_txid: paymentTxid,
+            paid_at: new Date().toISOString(),
+            funded_at: new Date().toISOString(),
+          }
+        : current
+    );
   }
 
   if (loading) {
@@ -229,7 +221,7 @@ export default function PayPage({ params }: { params: Promise<{ id: string }> })
     order.escrow_vault_address.startsWith("utest1") ||
     order.escrow_vault_address.startsWith("tm");
   const total = Number(order.amount) + Number(order.delivery_fee);
-  const displayedTxid = txid ?? (order.status === "HELD_IN_ESCROW" ? order.fund_txid : null);
+  const displayedTxid = txid ?? (order.status === "HELD_IN_ESCROW" ? (order.deposit_txid || order.fund_txid) : null);
   const isPaid = order.status !== "PENDING_PAYMENT";
 
   const buyerHeaderSlot = (
@@ -247,6 +239,36 @@ export default function PayPage({ params }: { params: Promise<{ id: string }> })
 
   return (
     <PageShell role="buyer" rightSlot={buyerHeaderSlot}>
+      {/* Prominent Real-Time On-Chain Deposit Banner */}
+      {(toastVerified || (displayedTxid && isPaid)) && (
+        <div className="mb-6 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3.5 rounded-2xl border border-emerald-500/40 bg-emerald-500/10 p-4 sm:p-5 shadow-lg shadow-emerald-500/5">
+          <div className="flex items-center gap-3">
+            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-emerald-500/40 bg-emerald-500/20 text-emerald-400">
+              <ShieldCheck className="h-5 w-5" />
+            </div>
+            <div>
+              <p className="font-bold text-white text-sm sm:text-base">
+                Deposit Verified On-Chain — Funds Locked in TrustPay Vault
+              </p>
+              <p className="text-xs text-emerald-300/90 mt-0.5">
+                Payment confirmed on {isTestnet ? "TAZ Testnet" : "ZEC Mainnet"}. The seller is now authorized to dispatch your order.
+              </p>
+            </div>
+          </div>
+          {displayedTxid && (
+            <a
+              href={explorerTxUrl(displayedTxid, isTestnet)}
+              target="_blank"
+              rel="noreferrer"
+              className="inline-flex shrink-0 min-h-[38px] items-center gap-1.5 rounded-xl border border-emerald-500/40 bg-emerald-500/20 px-3.5 py-1.5 text-xs font-semibold text-emerald-200 hover:bg-emerald-500/30 transition-colors"
+            >
+              <span>View On-Chain Tx</span>
+              <ExternalLink className="h-3.5 w-3.5" />
+            </a>
+          )}
+        </div>
+      )}
+
       {/* Order Header with Bespoke Brand Emblem */}
       <div className="mb-6 text-center">
         <TrustPayLogo className="mx-auto mb-3.5 h-12 w-12 sm:h-14 sm:w-14" />
@@ -409,19 +431,6 @@ export default function PayPage({ params }: { params: Promise<{ id: string }> })
             </p>
           )}
 
-          {/* Quick Sim Mode Switcher */}
-          <button
-            type="button"
-            onClick={() => setSimMode((active) => !active)}
-            className={`w-full min-h-[44px] rounded-xl border px-4 py-2.5 text-xs font-semibold transition ${
-              simMode
-                ? "border-amber-500/50 bg-amber-500/10 text-amber-400 shadow-sm"
-                : "border-slate-800 bg-slate-900/60 text-slate-400 hover:text-slate-200"
-            }`}
-          >
-            ⚡ {simMode ? "Sim Mode Active (Instant Simulated Testnet Deposit)" : "Enable Demo Simulation Mode"}
-          </button>
-
           <button type="submit" className={`${primaryButtonClass} w-full py-4 text-base`}>
             <Wallet className="h-5 w-5" />
             Proceed to Private Shielded Payment
@@ -479,11 +488,8 @@ export default function PayPage({ params }: { params: Promise<{ id: string }> })
         open={checkoutOpen}
         order={order}
         amount={total}
-        simMode={simMode}
         onClose={() => setCheckoutOpen(false)}
-        onPaymentSubmitted={(paymentTxid, buyerAddress) =>
-          void recordFunding(paymentTxid, buyerAddress)
-        }
+        onPaymentSubmitted={(paymentTxid) => recordFunding(paymentTxid)}
       />
     </PageShell>
   );

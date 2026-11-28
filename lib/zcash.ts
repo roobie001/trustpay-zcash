@@ -70,18 +70,26 @@ export function hasInjectedZcashWallet(): boolean {
   return typeof window !== "undefined" && Boolean(window.zcash);
 }
 
-export function explorerTxUrl(txid: string): string {
+export function explorerTxUrl(txid: string, isTestnet?: boolean): string {
+  const cleanTxid = encodeURIComponent(txid.trim());
+  if (isTestnet) {
+    return `https://explorer.testnet.zec.rocks/tx/${cleanTxid}`;
+  }
   const base =
     process.env.NEXT_PUBLIC_ZCASH_EXPLORER_URL ??
-    "https://zcashblockexplorer.com/tx";
-  return `${base.replace(/\/$/, "")}/${encodeURIComponent(txid)}`;
+    "https://explorer.zec.rocks/tx";
+  return `${base.replace(/\/$/, "")}/${cleanTxid}`;
+}
+
+export function getZcashExplorerTxUrl(txid: string, isTestnet = false): string {
+  return explorerTxUrl(txid, isTestnet);
 }
 
 export function createOrderMemo(
   orderId: string,
   payload: Record<string, string>,
 ): string {
-  const memo = `TRUSTPAY:${orderId}:${JSON.stringify(payload)}`;
+  const memo = `trustpay:${orderId}:${JSON.stringify(payload)}`;
   const bytes = new TextEncoder().encode(memo);
   if (bytes.length > ZCASH_MEMO_BYTES) {
     throw new Error(
@@ -92,11 +100,15 @@ export function createOrderMemo(
 }
 
 export function encodeMemoBase64Url(value: string): string {
+  if (typeof Buffer !== "undefined") {
+    return Buffer.from(value, "utf8").toString("base64url");
+  }
   const bytes = new TextEncoder().encode(value);
   let binary = "";
-  for (const byte of bytes) binary += String.fromCharCode(byte);
-  const base64 = btoa(binary);
-  return base64.replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/g, "");
+  for (let i = 0; i < bytes.byteLength; i++) {
+    binary += String.fromCharCode(bytes[i]);
+  }
+  return btoa(binary).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/g, "");
 }
 
 /** Builds a ZIP-321-compatible payment URI with a base64url encrypted-memo payload. */
@@ -113,7 +125,7 @@ export function buildZcashPaymentUri({
     throw new Error("Payment amount must be positive.");
   if (Number(amountZec.toFixed(ZEC_DECIMALS)) !== amountZec)
     throw new Error("Payment amount cannot have more than 8 decimal places.");
-  const memoPayload = `TRUSTPAY:${orderId}${message ? `:${message}` : ""}`;
+  const memoPayload = orderMemoPayload(orderId, message);
   const memoBytes = new TextEncoder().encode(memoPayload);
   if (memoBytes.length > ZCASH_MEMO_BYTES) {
     throw new Error(
@@ -129,7 +141,7 @@ export function buildZcashPaymentUri({
 }
 
 export function orderMemoPayload(orderId: string, message?: string): string {
-  return `TRUSTPAY:${orderId}${message ? `:${message}` : ""}`;
+  return `trustpay:${orderId}${message ? `:${message}` : ""}`;
 }
 
 export function loadEphemeralZcashWallet(): EphemeralZcashWallet | null {

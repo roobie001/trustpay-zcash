@@ -53,7 +53,7 @@ export function SellerSettlementCard({
     isTestnet && payoutStatus === "PROCESSING" ? 15 : null
   );
 
-  // Auto-settling countdown timer for Testnet / Demo mode
+  // Auto-settling countdown timer for Testnet mode
   useEffect(() => {
     if (payoutStatus !== "PROCESSING" || !isTestnet) return;
 
@@ -164,7 +164,7 @@ export function SellerSettlementCard({
               <div className="mt-3 flex items-center justify-between rounded-lg border border-amber-500/30 bg-black/30 px-3.5 py-2 font-mono text-xs">
                 <span className="flex items-center gap-1.5 text-amber-300">
                   <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                  Auto-settling in Testnet demo...
+                  Auto-confirming on TAZ Testnet...
                 </span>
                 <span className="font-bold tabular-nums text-amber-400">{testnetSecondsLeft}s</span>
               </div>
@@ -210,7 +210,7 @@ export function SellerSettlementCard({
                   {copiedTxid ? "Copied" : "Copy"}
                 </button>
                 <a
-                  href={explorerTxUrl(txid)}
+                  href={explorerTxUrl(txid, isTestnet)}
                   target="_blank"
                   rel="noreferrer"
                   className="inline-flex min-h-[28px] items-center gap-1 rounded-md px-2 py-0.5 text-xs text-slate-400 transition-colors hover:bg-white/10 hover:text-white"

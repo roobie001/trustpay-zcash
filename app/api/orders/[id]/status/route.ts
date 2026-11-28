@@ -26,7 +26,7 @@ export async function GET(
   const { id } = await params;
   const { data, error } = await getSupabaseAdmin()
     .from("escrow_orders")
-    .select("id, status, fund_txid, release_txid, delivery_notes")
+    .select("id, status, deposit_txid, fund_txid, release_txid, delivery_notes")
     .eq("id", id)
     .maybeSingle();
   if (error || !data) {

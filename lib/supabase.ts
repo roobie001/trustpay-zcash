@@ -40,8 +40,11 @@ export type EscrowOrder = {
   buyer_name: string | null;
   buyer_phone: string | null;
   fund_txid: string | null;
+  deposit_txid?: string | null;
   release_txid: string | null;
   paid_at?: string | null;
+  funded_at?: string | null;
+  confirmations?: number | null;
   status: "PENDING_PAYMENT" | "HELD_IN_ESCROW" | "DISPATCHED" | "FUNDS_RELEASED" | "DISPUTED";
   created_at: string;
 };

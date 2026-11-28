@@ -6,6 +6,7 @@ import {
   AlertTriangle,
   Check,
   Copy,
+  ExternalLink,
   Eye,
   EyeOff,
   FileCheck2,
@@ -23,7 +24,13 @@ import {
   X,
 } from "lucide-react";
 import { supabase, type EscrowOrder } from "@/lib/supabase";
-import { formatZec, getHandoverPin, shortZcashAddress } from "@/lib/zcash";
+import {
+  explorerTxUrl,
+  formatZec,
+  getHandoverPin,
+  isTestnetZcashAddress,
+  shortZcashAddress,
+} from "@/lib/zcash";
 import { formatZecEquivalents, getZecRates, type ZecRates } from "@/lib/format";
 import {
   getRecentDeals,
@@ -56,7 +63,6 @@ export default function OrderPage({ params }: { params: Promise<{ id: string }> 
   const urlKey = searchParams.get("key");
 
   const [order, setOrder] = useState<EscrowOrder | null>(null);
-  const [sellerView, setSellerView] = useState(Boolean(urlKey));
   const [sellerAuthorized, setSellerAuthorized] = useState(false);
   const [activeSellerKey, setActiveSellerKey] = useState<string | null>(urlKey);
   const [sellerDashOpen, setSellerDashOpen] = useState(false);
@@ -131,7 +137,6 @@ export default function OrderPage({ params }: { params: Promise<{ id: string }> 
         if (active && data.isSeller) {
           setSellerAuthorized(true);
           if (keyToTest) setActiveSellerKey(keyToTest);
-          if (urlKey) setSellerView(true);
         }
       } catch {
         // Ignore
@@ -173,6 +178,7 @@ export default function OrderPage({ params }: { params: Promise<{ id: string }> 
         if (!response.ok) return;
         const data = (await response.json()) as {
           status?: EscrowOrder["status"];
+          deposit_txid?: string | null;
           fund_txid?: string | null;
           release_txid?: string | null;
           delivery_notes?: string | null;
@@ -183,6 +189,7 @@ export default function OrderPage({ params }: { params: Promise<{ id: string }> 
               ? {
                   ...current,
                   status: data.status!,
+                  deposit_txid: data.deposit_txid ?? current.deposit_txid,
                   fund_txid: data.fund_txid ?? current.fund_txid,
                   release_txid: data.release_txid ?? current.release_txid,
                   delivery_notes: data.delivery_notes ?? current.delivery_notes,
@@ -307,17 +314,24 @@ export default function OrderPage({ params }: { params: Promise<{ id: string }> 
     }
     setBusy(true);
     try {
-      const response = await fetch("/api/relayer/verify-deposit", {
+      const response = await fetch(`/api/orders/${id}/verify-payment`, {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ orderId: id, txid }),
+        body: JSON.stringify({ txid }),
       });
       const data = (await response.json()) as { success?: boolean; txid?: string; error?: string };
       if (!response.ok || !data.success) {
         throw new Error(data.error ?? "Unable to verify this payment ID.");
       }
       setOrder((current) =>
-        current ? { ...current, status: "HELD_IN_ESCROW", fund_txid: data.txid ?? txid } : current
+        current
+          ? {
+              ...current,
+              status: "HELD_IN_ESCROW",
+              deposit_txid: data.txid ?? txid,
+              fund_txid: data.txid ?? txid,
+            }
+          : current
       );
       setManualTxid("");
     } catch (reason) {
@@ -335,7 +349,7 @@ export default function OrderPage({ params }: { params: Promise<{ id: string }> 
       `Order: ${order.item_title} (ID: ${order.id})\n` +
       `Amount: ${formatZec(totalAmount)}\n` +
       `Vendor: ${order.seller_name} (${shortZcashAddress(order.vendor_address)})\n` +
-      `Deposited: ${order.paid_at || order.created_at} | Tx: ${order.fund_txid || "Confirmed"}\n` +
+      `Deposited: ${order.paid_at || order.created_at} | Tx: ${order.deposit_txid || order.fund_txid || "Confirmed"}\n` +
       `Dispatched: ${metadata.dispatched_at || "Yes"} | Fulfillment: ${metadata.rider_phone || "Assigned"}\n` +
       `Released: ${metadata.settled_at || new Date().toISOString()} | Payout Tx: ${order.release_txid || "Settled"}\n` +
       `Status: Delivered & Funds Released Privately\n` +
@@ -369,9 +383,11 @@ export default function OrderPage({ params }: { params: Promise<{ id: string }> 
   const handoverPin = getHandoverPin(order.id);
   const pinDigits = handoverPin.split("");
 
-  // Role separation: Only authorized sellers (with verified key) can access seller mode
+  // Role separation: Only authorized sellers (with verified key) have seller management view
   const isAuthorizedSeller = Boolean(sellerAuthorized && (urlKey || activeSellerKey));
-  const isSellerMode = isAuthorizedSeller && sellerView;
+  const isSellerMode = isAuthorizedSeller;
+  const isTestnet = isTestnetZcashAddress(order.escrow_vault_address || order.vendor_address || "");
+  const depositTxid = order.deposit_txid || order.fund_txid;
 
   // Buyer full delivery address (optional for digital/pickup orders)
   const rawBuyerAddress =
@@ -399,6 +415,36 @@ export default function OrderPage({ params }: { params: Promise<{ id: string }> 
         </div>
       }
     >
+      {/* Prominent Real-Time On-Chain Deposit Verification Banner */}
+      {(isHeld || depositTxid) && !isDisputed && (
+        <div className="mb-5 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3.5 rounded-2xl border border-emerald-500/40 bg-emerald-500/10 p-4 sm:p-5 shadow-lg shadow-emerald-500/5">
+          <div className="flex items-center gap-3">
+            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-emerald-500/40 bg-emerald-500/20 text-emerald-400">
+              <ShieldCheck className="h-5 w-5" />
+            </div>
+            <div>
+              <p className="font-bold text-white text-sm sm:text-base">
+                Deposit Verified On-Chain — Funds Locked in TrustPay Vault
+              </p>
+              <p className="text-xs text-emerald-300/90 mt-0.5">
+                Payment verified on {isTestnet ? "TAZ Testnet" : "ZEC Mainnet"}. Funds are cryptographically secured in escrow.
+              </p>
+            </div>
+          </div>
+          {depositTxid && (
+            <a
+              href={explorerTxUrl(depositTxid, isTestnet)}
+              target="_blank"
+              rel="noreferrer"
+              className="inline-flex shrink-0 min-h-[38px] items-center gap-1.5 rounded-xl border border-emerald-500/40 bg-emerald-500/20 px-3.5 py-1.5 text-xs font-semibold text-emerald-200 hover:bg-emerald-500/30 transition-colors"
+            >
+              <span>View On-Chain Tx</span>
+              <ExternalLink className="h-3.5 w-3.5" />
+            </a>
+          )}
+        </div>
+      )}
+
       {/* Top Bar: Order Escrow Tracker ID + Share / Copy Tracking Link (Strict Buyer Tracking Header) */}
       <div className="mb-5 flex flex-wrap items-center justify-between gap-3 border-b border-slate-800/80 pb-4">
         <div className="flex items-center gap-2">
@@ -436,13 +482,6 @@ export default function OrderPage({ params }: { params: Promise<{ id: string }> 
             >
               <Wallet className="h-3.5 w-3.5 text-amber-400" />
               Seller Ledger
-            </button>
-            <button
-              type="button"
-              onClick={() => setSellerView((v) => !v)}
-              className="inline-flex items-center gap-1 rounded-lg border border-slate-700 bg-slate-900 px-2.5 py-1.5 text-xs font-medium text-slate-300 hover:bg-slate-800 transition"
-            >
-              {sellerView ? "Preview Buyer View" : "Return to Seller Mode"}
             </button>
           </div>
         </div>
@@ -899,9 +938,9 @@ export default function OrderPage({ params }: { params: Promise<{ id: string }> 
                 <span className="font-mono text-slate-200 tabular-nums">
                   {order.paid_at ? new Date(order.paid_at).toLocaleString() : new Date(order.created_at).toLocaleString()}
                 </span>
-                {order.fund_txid && (
+                {depositTxid && (
                   <p className="font-mono text-[11px] text-slate-400">
-                    Tx: {order.fund_txid.slice(0, 10)}…{order.fund_txid.slice(-8)}
+                    Tx: {depositTxid.slice(0, 10)}…{depositTxid.slice(-8)}
                   </p>
                 )}
               </div>

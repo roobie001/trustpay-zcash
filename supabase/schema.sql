@@ -28,10 +28,16 @@ create table if not exists escrow_orders (
   status text not null default 'PENDING_PAYMENT'
     check (status in ('PENDING_PAYMENT', 'HELD_IN_ESCROW', 'DISPATCHED', 'FUNDS_RELEASED', 'DISPUTED')),
   fund_txid text,
+  deposit_txid text,
   release_txid text,
   paid_at timestamptz,
+  funded_at timestamptz,
+  confirmations integer default 0,
   created_at timestamptz not null default now()
 );
+
+-- Unique index on deposit_txid to prevent replay attacks across orders
+create unique index if not exists idx_escrow_orders_deposit_txid on escrow_orders (deposit_txid) where deposit_txid is not null;
 
 -- Safe to re-run while migrating a database created by the EVM version.
 alter table escrow_orders add column if not exists vendor_address text;

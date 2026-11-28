@@ -18,6 +18,7 @@ import { supabase, type EscrowOrder } from "@/lib/supabase";
 import { formatZec } from "@/lib/zcash";
 import { formatZecEquivalents, getZecRates, type ZecRates } from "@/lib/format";
 import {
+  getRecentDeals,
   getSavedSellerProfile,
   parseOrderMetadata,
   type PayoutStatus,
@@ -49,11 +50,27 @@ export function SellerDashboard({ open, onClose, initialLookup }: SellerDashboar
   }, []);
 
   useEffect(() => {
-    if (open) {
-      void fetchSellerOrders(lookupValue);
-    }
+    if (!open) return;
+
+    void fetchSellerOrders(lookupValue);
+
+    // Subscribe to live escrow_orders table changes so the seller ledger and summary cards update in real time
+    const channel = supabase
+      .channel("seller_dashboard_orders")
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "escrow_orders" },
+        () => {
+          void fetchSellerOrders(lookupValue);
+        }
+      )
+      .subscribe();
+
+    return () => {
+      void supabase.removeChannel(channel);
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [open]);
+  }, [open, lookupValue]);
 
   async function fetchSellerOrders(searchVal: string) {
     const term = searchVal.trim();
@@ -296,6 +313,11 @@ export function SellerDashboard({ open, onClose, initialLookup }: SellerDashboar
                   const { metadata } = parseOrderMetadata(ord.delivery_notes);
                   const payoutStatus: PayoutStatus = metadata.payout_status ?? "PROCESSING";
                   const isReleased = ord.status === "FUNDS_RELEASED";
+                  const matchingDeal = getRecentDeals().find((d) => d.id === ord.id);
+                  const sellerKey = matchingDeal?.sellerKey || profile?.seller_secret_token;
+                  const orderHref = sellerKey
+                    ? `/order/${ord.id}?key=${encodeURIComponent(sellerKey)}`
+                    : `/order/${ord.id}`;
 
                   return (
                     <div
@@ -369,7 +391,7 @@ export function SellerDashboard({ open, onClose, initialLookup }: SellerDashboar
                         )}
 
                         <Link
-                          href={`/order/${ord.id}`}
+                          href={orderHref}
                           onClick={onClose}
                           className="inline-flex min-h-[36px] items-center gap-1 rounded-lg border border-slate-800 bg-[#0B1120] px-3 text-xs font-semibold text-slate-300 transition-colors hover:bg-white/10 hover:text-white"
                         >
