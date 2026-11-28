@@ -370,7 +370,7 @@ export function PayClient({ initialOrder }: PayClientProps) {
               id="buyer-name"
               value={buyerName}
               onChange={(e) => setBuyerName(e.target.value)}
-              placeholder="e.g. Adebayo Davies or @pseudonym"
+              placeholder="e.g. John Doe, Alex, or @handle"
               className={inputClass}
             />
           </div>

@@ -1,6 +1,7 @@
 "use client";
 
 import { use, useEffect, useState } from "react";
+import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import {
   AlertTriangle,
@@ -35,7 +36,6 @@ import {
 import { formatZecEquivalents, getZecRates, type ZecRates } from "@/lib/format";
 import {
   getRecentDeals,
-  getSavedSellerProfile,
   parseOrderMetadata,
   updateDealStatus,
 } from "@/lib/storage";
@@ -125,7 +125,7 @@ export default function OrderPage({ params }: { params: Promise<{ id: string }> 
     }
     void fetchOrder();
 
-    // 2. Determine seller key / authorization
+    // 2. Determine seller key / authorization strictly via verified seller key
     async function checkSellerAuth() {
       let keyToTest = urlKey;
       if (!keyToTest) {
@@ -134,26 +134,32 @@ export default function OrderPage({ params }: { params: Promise<{ id: string }> 
         if (found?.sellerKey) keyToTest = found.sellerKey;
       }
 
-      const sellerProfile = getSavedSellerProfile();
-
-      let verifyUrl = `/api/orders/${id}/verify-seller`;
-      if (keyToTest) {
-        verifyUrl += `?key=${encodeURIComponent(keyToTest)}`;
-      } else if (sellerProfile?.seller_secret_token) {
-        verifyUrl += `?token=${encodeURIComponent(sellerProfile.seller_secret_token)}`;
-      } else {
+      // If no seller key is present, strictly remain in buyer mode
+      if (!keyToTest) {
+        if (active) {
+          setSellerAuthorized(false);
+          setActiveSellerKey(null);
+        }
         return;
       }
 
       try {
-        const res = await fetch(verifyUrl);
+        const res = await fetch(`/api/orders/${id}/verify-seller?key=${encodeURIComponent(keyToTest)}`);
         const data = (await res.json()) as { isSeller?: boolean };
-        if (active && data.isSeller) {
-          setSellerAuthorized(true);
-          if (keyToTest) setActiveSellerKey(keyToTest);
+        if (active) {
+          if (data.isSeller) {
+            setSellerAuthorized(true);
+            setActiveSellerKey(keyToTest);
+          } else {
+            setSellerAuthorized(false);
+            setActiveSellerKey(null);
+          }
         }
       } catch {
-        // Ignore
+        if (active) {
+          setSellerAuthorized(false);
+          setActiveSellerKey(null);
+        }
       }
     }
 
@@ -201,13 +207,13 @@ export default function OrderPage({ params }: { params: Promise<{ id: string }> 
           setOrder((current) =>
             current
               ? {
-                  ...current,
-                  status: data.status!,
-                  deposit_txid: data.deposit_txid ?? current.deposit_txid,
-                  fund_txid: data.fund_txid ?? current.fund_txid,
-                  release_txid: data.release_txid ?? current.release_txid,
-                  delivery_notes: data.delivery_notes ?? current.delivery_notes,
-                }
+                ...current,
+                status: data.status!,
+                deposit_txid: data.deposit_txid ?? current.deposit_txid,
+                fund_txid: data.fund_txid ?? current.fund_txid,
+                release_txid: data.release_txid ?? current.release_txid,
+                delivery_notes: data.delivery_notes ?? current.delivery_notes,
+              }
               : current
           );
         }
@@ -306,10 +312,10 @@ export default function OrderPage({ params }: { params: Promise<{ id: string }> 
       setOrder((current) =>
         current
           ? {
-              ...current,
-              status: "FUNDS_RELEASED",
-              release_txid: data.payoutTxid ?? data.txid ?? current.release_txid,
-            }
+            ...current,
+            status: "FUNDS_RELEASED",
+            release_txid: data.payoutTxid ?? data.txid ?? current.release_txid,
+          }
           : current
       );
     } catch (reason) {
@@ -340,11 +346,11 @@ export default function OrderPage({ params }: { params: Promise<{ id: string }> 
       setOrder((current) =>
         current
           ? {
-              ...current,
-              status: "HELD_IN_ESCROW",
-              deposit_txid: data.txid ?? txid,
-              fund_txid: data.txid ?? txid,
-            }
+            ...current,
+            status: "HELD_IN_ESCROW",
+            deposit_txid: data.txid ?? txid,
+            fund_txid: data.txid ?? txid,
+          }
           : current
       );
       setManualTxid("");
@@ -423,9 +429,9 @@ export default function OrderPage({ params }: { params: Promise<{ id: string }> 
   const handoverPin = getHandoverPin(order.id);
   const pinDigits = handoverPin.split("");
 
-  // Role separation: Only authorized sellers (with verified key) have seller management view
-  const isAuthorizedSeller = Boolean(sellerAuthorized && (urlKey || activeSellerKey));
-  const isSellerMode = isAuthorizedSeller;
+  // Strict role separation: Only authorized sellers (with verified key) have seller view
+  const isSeller = Boolean(sellerAuthorized && activeSellerKey);
+  const isBuyer = !isSeller;
   const isTestnet = isTestnetZcashAddress(order.escrow_vault_address || order.vendor_address || "");
   const depositTxid = order.deposit_txid || order.fund_txid;
 
@@ -436,21 +442,24 @@ export default function OrderPage({ params }: { params: Promise<{ id: string }> 
         ? `${metadata.doorstep_address.trim()} (Landmark: ${metadata.landmark.trim()})`
         : metadata.doorstep_address.trim()
       : order.buyer_address && order.buyer_address.trim() !== "Doorstep Address not specified"
-      ? order.buyer_address.trim()
-      : null;
+        ? order.buyer_address.trim()
+        : null;
 
   // Clean buyer phone for links
   const buyerCleanPhone = (order.buyer_phone || "").replace(/\D/g, "");
 
   return (
     <PageShell
-      role="tracker"
+      role={isSeller ? "seller" : "tracker"}
       rightSlot={
         <div className="flex items-center gap-2">
           <span className="inline-flex items-center gap-1.5 rounded-full border border-emerald-500/30 bg-emerald-500/10 px-2.5 sm:px-3 py-1 text-xs font-semibold text-emerald-400">
             <ShieldCheck className="h-3.5 w-3.5 shrink-0" />
             <span className="hidden xs:inline">Shielded</span>
             <span>Escrow</span>
+          </span>
+          <span className="rounded-full border border-slate-800 bg-[#0F172A] px-2.5 py-1 text-xs font-semibold text-amber-400">
+            {isTestnet ? "TAZ Testnet" : "ZEC Mainnet"}
           </span>
         </div>
       }
@@ -485,12 +494,12 @@ export default function OrderPage({ params }: { params: Promise<{ id: string }> 
         </div>
       )}
 
-      {/* Top Bar: Order Escrow Tracker ID + Share / Copy Tracking Link (Strict Buyer Tracking Header) */}
+      {/* Top Bar: Order Escrow Tracker ID + Share / Copy Tracking Link */}
       <div className="mb-5 flex flex-wrap items-center justify-between gap-3 border-b border-slate-800/80 pb-4">
         <div className="flex items-center gap-2">
           <span className="inline-flex items-center gap-1.5 rounded-full border border-slate-700/80 bg-slate-900/90 px-3 py-1.5 text-xs font-semibold text-slate-200">
             <ShieldCheck className="h-3.5 w-3.5 text-amber-500" />
-            <span>Order Escrow Tracker</span>
+            <span>{isSeller ? "SELLER VIEW — Order Manager" : "Order Escrow Tracker"}</span>
           </span>
           <span className="font-mono text-xs text-slate-400">
             #{order.id.slice(0, 8)}
@@ -508,11 +517,11 @@ export default function OrderPage({ params }: { params: Promise<{ id: string }> 
       </div>
 
       {/* Authorized Seller Management Bar (ONLY rendered when authorized via private seller key) */}
-      {isAuthorizedSeller && (
+      {isSeller && (
         <div className="mb-5 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-purple-500/30 bg-purple-500/10 p-3.5 sm:px-4 text-xs font-medium text-purple-200 shadow-sm">
           <div className="flex items-center gap-2">
             <LayoutDashboard className="h-4 w-4 text-purple-400 shrink-0" />
-            <span><strong>Seller Management Mode</strong> — Authorized via private key</span>
+            <span><strong>SELLER VIEW</strong> — Seller Management Mode (Authorized via private key)</span>
           </div>
           <div className="flex items-center gap-2">
             <button
@@ -523,16 +532,23 @@ export default function OrderPage({ params }: { params: Promise<{ id: string }> 
               <Wallet className="h-3.5 w-3.5 text-amber-400" />
               Seller Ledger
             </button>
+            <Link
+              href={activeSellerKey ? `/dashboard?key=${encodeURIComponent(activeSellerKey)}` : "/dashboard"}
+              className="inline-flex items-center gap-1.5 rounded-lg border border-purple-500/40 bg-purple-900/60 px-3 py-1.5 text-xs font-semibold text-purple-200 hover:bg-purple-800/80 transition"
+            >
+              <LayoutDashboard className="h-3.5 w-3.5" />
+              Dashboard
+            </Link>
           </div>
         </div>
       )}
 
       {/* Order Title and Pricing Header */}
       <div className="mb-6 text-center">
-        {isSellerMode && (
+        {isSeller && (
           <span className="mb-2.5 inline-flex items-center gap-1.5 rounded-full border border-purple-500/30 bg-purple-500/10 px-3 py-1 text-xs font-medium text-purple-300">
             <LayoutDashboard className="h-3.5 w-3.5" />
-            Seller Management View
+            SELLER VIEW — Management Mode
           </span>
         )}
         <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-white leading-tight">
@@ -593,8 +609,8 @@ export default function OrderPage({ params }: { params: Promise<{ id: string }> 
             {isDisputed
               ? "DISPUTED"
               : released
-              ? "4 / 4 COMPLETED"
-              : `${stageIndex + 1} / 4 STAGES`}
+                ? "4 / 4 COMPLETED"
+                : `${stageIndex + 1} / 4 STAGES`}
           </span>
         </div>
         <ol className="relative space-y-4">
@@ -608,9 +624,8 @@ export default function OrderPage({ params }: { params: Promise<{ id: string }> 
                 {/* Vertical connector line connecting consecutive step icons */}
                 {index < stages.length - 1 && (
                   <span
-                    className={`absolute left-[18px] top-9 h-4 w-0.5 -translate-x-1/2 transition-colors ${
-                      isCompleted && !isDisputed ? "bg-emerald-500/40" : "bg-slate-800"
-                    }`}
+                    className={`absolute left-[18px] top-9 h-4 w-0.5 -translate-x-1/2 transition-colors ${isCompleted && !isDisputed ? "bg-emerald-500/40" : "bg-slate-800"
+                      }`}
                     aria-hidden="true"
                   />
                 )}
@@ -633,13 +648,12 @@ export default function OrderPage({ params }: { params: Promise<{ id: string }> 
                 {/* Stage Label & Status Tag */}
                 <div className="flex flex-col">
                   <span
-                    className={`text-sm ${
-                      isActive
-                        ? "font-bold text-white"
-                        : isCompleted
+                    className={`text-sm ${isActive
+                      ? "font-bold text-white"
+                      : isCompleted
                         ? "font-semibold text-slate-200"
                         : "text-slate-500"
-                    }`}
+                      }`}
                   >
                     {label}
                   </span>
@@ -673,7 +687,7 @@ export default function OrderPage({ params }: { params: Promise<{ id: string }> 
       {/* =========================================================================
           ASYMMETRIC PRIVACY: SELLER VIEW (Authorized Sellers Only)
           ========================================================================= */}
-      {isSellerMode && (
+      {isSeller && (
         <div className="mb-5 space-y-5">
           {/* Asymmetric Privacy Information Box */}
           <div className={`${cardClass} p-5 sm:p-6`}>
@@ -689,11 +703,10 @@ export default function OrderPage({ params }: { params: Promise<{ id: string }> 
                 </h3>
               </div>
               <span
-                className={`rounded-full px-2.5 py-0.5 text-xs font-semibold uppercase ${
-                  isPending
-                    ? "border border-amber-500/30 bg-amber-500/10 text-amber-300"
-                    : "border border-emerald-500/30 bg-emerald-500/10 text-emerald-300"
-                }`}
+                className={`rounded-full px-2.5 py-0.5 text-xs font-semibold uppercase ${isPending
+                  ? "border border-amber-500/30 bg-amber-500/10 text-amber-300"
+                  : "border border-emerald-500/30 bg-emerald-500/10 text-emerald-300"
+                  }`}
               >
                 {isPending ? "Protected / Masked" : "Unlocked"}
               </span>
@@ -725,7 +738,7 @@ export default function OrderPage({ params }: { params: Promise<{ id: string }> 
                     Buyer Name / Alias:
                   </span>
                   <p className="mt-1 font-semibold text-white text-base">
-                    {order.buyer_name || "Adebayo Davies"}
+                    {order.buyer_name || "Verified Buyer"}
                   </p>
                 </div>
 
@@ -802,6 +815,44 @@ export default function OrderPage({ params }: { params: Promise<{ id: string }> 
             </button>
           )}
 
+          {/* Seller Fulfillment Status Block when DISPATCHED */}
+          {isDispatched && (
+            <div className={`${cardClass} border-blue-500/30 bg-blue-500/5 p-5 text-left`}>
+              <div className="flex items-start gap-3.5">
+                <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-blue-500/30 bg-blue-500/15 text-blue-400">
+                  <Truck className="h-5 w-5" />
+                </div>
+                <div className="flex-1">
+                  <h4 className="text-sm font-semibold text-white">Order Dispatched to Buyer</h4>
+                  <p className="mt-1 text-xs text-slate-300 leading-relaxed">
+                    {metadata.rider_phone === "Digital / Direct Pickup"
+                      ? "Fulfillment marked as Digital / Pickup Delivery."
+                      : `Dispatched with rider: ${metadata.rider_phone || "Assigned"}.`}
+                    {" "}Awaiting buyer package inspection and delivery acceptance to release escrow funds.
+                  </p>
+                  {metadata.waybill_notes && (
+                    <p className="mt-2 rounded-lg border border-slate-800 bg-[#030712] p-2.5 font-mono text-[11px] text-slate-300">
+                      <span className="font-sans font-semibold text-amber-400">Waybill Note: </span>
+                      {metadata.waybill_notes}
+                    </p>
+                  )}
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Seller Action: Raise a Dispute */}
+          {(isHeld || isDispatched) && !isDisputed && (
+            <button
+              type="button"
+              onClick={() => setDisputeDrawerOpen(true)}
+              className={`${secondaryButtonClass} w-full text-xs text-slate-400 hover:text-red-300 hover:border-red-500/40`}
+            >
+              <ShieldAlert className="h-4 w-4 text-amber-500" />
+              Raise a Seller Escrow Dispute
+            </button>
+          )}
+
           {/* Two-Stage Settlement Card on Seller View when released */}
           {released && (
             <SellerSettlementCard
@@ -810,12 +861,12 @@ export default function OrderPage({ params }: { params: Promise<{ id: string }> 
                 setOrder((prev) =>
                   prev
                     ? {
-                        ...prev,
-                        delivery_notes: JSON.stringify({
-                          ...parseOrderMetadata(prev.delivery_notes).metadata,
-                          payout_status: newStat,
-                        }),
-                      }
+                      ...prev,
+                      delivery_notes: JSON.stringify({
+                        ...parseOrderMetadata(prev.delivery_notes).metadata,
+                        payout_status: newStat,
+                      }),
+                    }
                     : prev
                 );
               }}
@@ -828,7 +879,7 @@ export default function OrderPage({ params }: { params: Promise<{ id: string }> 
       {/* =========================================================================
           BUYER VIEW: HANDOVER PIN & RIDER CALL & ESCROW VAULT SECURED
           ========================================================================= */}
-      {!isSellerMode && (
+      {isBuyer && (
         <div className="mb-5 space-y-5">
           {/* When HELD_IN_ESCROW: Inform buyer that deposit is safely locked in the shielded vault */}
           {isHeld && (
@@ -1035,8 +1086,8 @@ export default function OrderPage({ params }: { params: Promise<{ id: string }> 
         </p>
       )}
 
-      {/* Mandatory Dispatch Modal */}
-      {dispatchModalOpen && (
+      {/* Mandatory Dispatch Modal (Authorized Seller Only) */}
+      {isSeller && dispatchModalOpen && (
         <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/80 backdrop-blur-sm p-4 sm:items-center">
           <div
             role="dialog"
@@ -1158,19 +1209,21 @@ export default function OrderPage({ params }: { params: Promise<{ id: string }> 
       <DisputeDrawer
         open={disputeDrawerOpen}
         order={order}
-        isSeller={isSellerMode}
+        isSeller={isSeller}
         onClose={() => setDisputeDrawerOpen(false)}
         onStatusUpdated={(newStatus) => {
           setOrder((prev) => (prev ? { ...prev, status: newStatus } : prev));
         }}
       />
 
-      {/* Seller Dashboard Modal */}
-      <SellerDashboard
-        open={sellerDashOpen}
-        onClose={() => setSellerDashOpen(false)}
-        initialLookup={order.vendor_address || order.seller_phone}
-      />
+      {/* Seller Dashboard Modal (Authorized Seller Only) */}
+      {isSeller && (
+        <SellerDashboard
+          open={sellerDashOpen}
+          onClose={() => setSellerDashOpen(false)}
+          initialLookup={order.vendor_address || order.seller_phone}
+        />
+      )}
     </PageShell>
   );
 }

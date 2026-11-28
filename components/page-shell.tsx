@@ -8,7 +8,7 @@ import { BrandLockup } from "@/components/BrandLogo";
 interface PageShellProps {
   children: ReactNode;
   /** Role context: 'buyer' checkout hides seller link-creation controls */
-  role?: "buyer" | "tracker" | "general";
+  role?: "buyer" | "tracker" | "general" | "seller";
   /** Optional custom right-side badge or action (e.g. network indicator) */
   rightSlot?: ReactNode;
 }
@@ -51,7 +51,7 @@ export function PageShell({ children, role = "general", rightSlot }: PageShellPr
               {rightSlot ?? (
                 <span className="inline-flex items-center gap-1.5 rounded-full border border-emerald-500/30 bg-emerald-500/10 px-2.5 sm:px-3 py-1 text-xs font-semibold text-emerald-400">
                   <ShieldCheck className="h-3.5 w-3.5 shrink-0" />
-                  <span>{role === "tracker" ? "Shielded Escrow" : "Shielded Vault"}</span>
+                  <span>{role === "tracker" ? "Shielded Escrow" : role === "seller" ? "Seller Management" : "Shielded Vault"}</span>
                 </span>
               )}
             </div>
