@@ -100,15 +100,22 @@ export function createOrderMemo(
 }
 
 export function encodeMemoBase64Url(value: string): string {
-  if (typeof Buffer !== "undefined") {
-    return Buffer.from(value, "utf8").toString("base64url");
+  if (!value) return "";
+  try {
+    const bytes = new TextEncoder().encode(value);
+    let binary = "";
+    const len = bytes.byteLength;
+    for (let i = 0; i < len; i++) {
+      binary += String.fromCharCode(bytes[i]);
+    }
+    return btoa(binary)
+      .replace(/\+/g, "-")
+      .replace(/\//g, "_")
+      .replace(/=+$/g, "");
+  } catch (err) {
+    console.warn("[encodeMemoBase64Url] fallback encoding warning:", err);
+    return "";
   }
-  const bytes = new TextEncoder().encode(value);
-  let binary = "";
-  for (let i = 0; i < bytes.byteLength; i++) {
-    binary += String.fromCharCode(bytes[i]);
-  }
-  return btoa(binary).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/g, "");
 }
 
 /** Builds a ZIP-321-compatible payment URI with a base64url encrypted-memo payload. */

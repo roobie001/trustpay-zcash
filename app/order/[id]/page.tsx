@@ -16,6 +16,7 @@ import {
   Lock,
   MessageCircle,
   PackageCheck,
+  PackageSearch,
   PhoneCall,
   ShieldAlert,
   ShieldCheck,
@@ -63,6 +64,8 @@ export default function OrderPage({ params }: { params: Promise<{ id: string }> 
   const urlKey = searchParams.get("key");
 
   const [order, setOrder] = useState<EscrowOrder | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [notFound, setNotFound] = useState(false);
   const [sellerAuthorized, setSellerAuthorized] = useState(false);
   const [activeSellerKey, setActiveSellerKey] = useState<string | null>(urlKey);
   const [sellerDashOpen, setSellerDashOpen] = useState(false);
@@ -100,16 +103,27 @@ export default function OrderPage({ params }: { params: Promise<{ id: string }> 
     let active = true;
 
     // 1. Fetch order
-    void supabase
-      .from("escrow_orders")
-      .select("*")
-      .eq("id", id)
-      .maybeSingle()
-      .then(({ data }) => {
-        if (active && data) {
+    async function fetchOrder() {
+      try {
+        const { data, error } = await supabase
+          .from("escrow_orders")
+          .select("*")
+          .eq("id", id)
+          .maybeSingle();
+
+        if (!active) return;
+        if (data && !error) {
           setOrder(data);
+        } else {
+          setNotFound(true);
         }
-      });
+      } catch {
+        if (active) setNotFound(true);
+      } finally {
+        if (active) setLoading(false);
+      }
+    }
+    void fetchOrder();
 
     // 2. Determine seller key / authorization
     async function checkSellerAuth() {
@@ -360,7 +374,33 @@ export default function OrderPage({ params }: { params: Promise<{ id: string }> 
     setTimeout(() => setCopiedReceipt(false), 2000);
   }
 
-  if (!order) {
+  if (notFound) {
+    return (
+      <PageShell role="tracker">
+        <div className="mx-auto max-w-md text-center py-12 px-4">
+          <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-2xl border border-slate-800 bg-[#0F172A] text-slate-400">
+            <PackageSearch className="h-8 w-8 text-amber-500" />
+          </div>
+          <h2 className="text-xl sm:text-2xl font-bold tracking-tight text-white">
+            Escrow Order Not Found
+          </h2>
+          <p className="mt-2.5 text-xs sm:text-sm text-slate-400 leading-relaxed">
+            This tracking link does not exist, has expired, or is an invalid reference.
+          </p>
+          <div className="mt-6 flex flex-col sm:flex-row items-center justify-center gap-3">
+            <a
+              href={`/order/${encodeURIComponent(id)}`}
+              className={`${primaryButtonClass} w-full sm:w-auto px-6 py-2.5 text-xs`}
+            >
+              Retry
+            </a>
+          </div>
+        </div>
+      </PageShell>
+    );
+  }
+
+  if (loading || !order) {
     return (
       <PageShell role="tracker">
         <PageMessage icon={<Loader2 className="h-7 w-7 animate-spin text-amber-500" />}>

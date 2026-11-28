@@ -34,6 +34,13 @@ export function ZcashCheckoutModal({
   const [copied, setCopied] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
+  // Client mounted check without cascading effect renders
+  const mounted = useSyncExternalStore(
+    () => () => undefined,
+    () => true,
+    () => false
+  );
+
   // Manual Paste Txid Verification State
   const [pasteTxid, setPasteTxid] = useState("");
   const [verifyingTxid, setVerifyingTxid] = useState(false);
@@ -109,9 +116,27 @@ export function ZcashCheckoutModal({
   }, [open, order.id, onPaymentSubmitted]);
 
   async function copy(value: string, name: string) {
-    await navigator.clipboard.writeText(value);
-    setCopied(name);
-    window.setTimeout(() => setCopied(null), 1800);
+    try {
+      if (typeof navigator !== "undefined" && navigator.clipboard?.writeText) {
+        await navigator.clipboard.writeText(value);
+      } else if (typeof document !== "undefined") {
+        const ta = document.createElement("textarea");
+        ta.value = value;
+        ta.style.position = "fixed";
+        ta.style.opacity = "0";
+        document.body.appendChild(ta);
+        ta.focus();
+        ta.select();
+        document.execCommand("copy");
+        document.body.removeChild(ta);
+      }
+      setCopied(name);
+      if (typeof window !== "undefined") {
+        window.setTimeout(() => setCopied(null), 1800);
+      }
+    } catch (err) {
+      console.warn("Failed to copy value:", err);
+    }
   }
 
   async function connectProvider() {
@@ -249,8 +274,14 @@ export function ZcashCheckoutModal({
           <div className="mt-5 text-center">
             {uri ? (
               <>
-                <div className="mx-auto w-fit rounded-2xl bg-white p-4 shadow-lg flex items-center justify-center">
-                  <QRCodeSVG value={uri} size={210} includeMargin />
+                <div className="mx-auto w-fit rounded-2xl bg-white p-4 shadow-lg flex items-center justify-center min-h-[242px] min-w-[242px]">
+                  {mounted ? (
+                    <QRCodeSVG value={uri} size={210} includeMargin />
+                  ) : (
+                    <div className="flex h-[210px] w-[210px] items-center justify-center">
+                      <Loader2 className="h-6 w-6 animate-spin text-slate-400" />
+                    </div>
+                  )}
                 </div>
                 <p className="mt-3.5 text-xs sm:text-sm font-medium text-slate-300">
                   Scan with your mobile wallet (Zingo, Zashi, YWallet) or open directly:
